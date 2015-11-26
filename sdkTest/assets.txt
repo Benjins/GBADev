@@ -1,0 +1,4 @@
+ballSprite:ball_sprite.bmp
+bulletSprite:bullet_sprite.bmp
+platformSprite:platform_sprite.bmp
+enemySprite:enemySprite.bmp

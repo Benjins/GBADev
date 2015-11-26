@@ -1,0 +1,8 @@
+#binary files
+*.gba
+*.elf
+*.o
+*.arm9
+*.nds
+
+*.exe

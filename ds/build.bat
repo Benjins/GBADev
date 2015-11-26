@@ -1,0 +1,1 @@
+gcc -c -IC:\devkitPro\libnds\include testDS/main.c
