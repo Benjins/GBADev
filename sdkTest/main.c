@@ -1,9 +1,11 @@
 
+
 #include <gba_console.h>
 #include <gba_video.h>
 #include <gba_interrupt.h>
 #include <gba_systemcalls.h>
 #include <gba_input.h>
+
 typedef unsigned char uint8;
 typedef unsigned short uint16;
 typedef unsigned int uint32;
@@ -44,6 +46,29 @@ typedef tile4bpp tile_block[512];
 #define BUTTON_SELECT 0x0004
 #define BUTTON_START 0x0008
 
+#define SNDWV_SQR1    0x01
+#define SNDWV_SQR2    0x02
+#define SNDWV_WAVE    0x04
+#define SNDWV_NOISE   0x08
+
+#define REG_SND_CH1_SWP  (*(volatile uint16*)0x4000060)  
+#define REG_SND_CH1_LDE  (*(volatile uint16*)0x4000062)
+#define REG_SND_CH1_FRQ  (*(volatile uint32*)0x4000064)
+
+#define REG_SND_DMGCNT  (*(volatile uint16*)0x4000080)
+#define REG_SND_DSCNT   (*(volatile uint16*)0x4000082)
+#define REG_SND_STAT    (*(volatile uint16*)0x4000084)    
+	
+#define SFREQ_RESET 0x8000
+
+#define SND_RATE(freq, oct) ( 2048-(freq>>(4+(oct))) )
+	
+#define SDMG_BUILD(_lmode, _rmode, _lvol, _rvol)    \
+    ( ((_lvol)&7) | (((_rvol)&7)<<4) | ((_lmode)<<8) | ((_rmode)<<12) )
+	
+#define SSQR_ENV_BUILD(ivol, dir, time)				\
+	(  ((ivol)<<12) | ((dir)<<11) | (((time)&7)<<8) )
+	
 #define OBJECT_ATTRIBUTE_ZERO_Y_MASK  0xFF
 #define OBJECT_ATTRIBUTE_ONE_X_MASK  0x1FF
 #define OBJECT_ATTRIBUTE_ONE_HORIZONTAL_FLIP_MASK  0x1000
@@ -53,6 +78,9 @@ typedef tile4bpp tile_block[512];
 #define object_palette_memory ((volatile rgb15 *)(MEM_PAL + 0x200))
 
 #define ARRAY_LENGTH(x) (sizeof(x)/sizeof((x)[0]))
+
+static inline void  enable_sound(){REG_SND_STAT |= 0x80;}
+static inline void disable_sound(){REG_SND_STAT &= ~0x80;}
 
 // Form a 16-bit BGR GBA colour from three component values (hopefully, in range).
 static inline rgb15 RGB15(int r, int g, int b) { return r | (g << 5) | (b << 10); }
@@ -76,6 +104,8 @@ static inline float clampf(float value, float min, float max) { return (value < 
 
 #include "assets.h"
 
+Sprite* goalUISprites[] = {&goalUI1Sprite, &goalUI2Sprite, &goalUI3Sprite, &goalUI4Sprite};
+
 static inline void set_sprite_memory(Sprite sprite, volatile uint16* memory){
 	int memSize = (sprite.height * sprite.width) / 4;
 	for(int i = 0; i < memSize; i++){
@@ -88,10 +118,10 @@ static inline void set_sprite_memory(Sprite sprite, volatile uint16* memory){
 	}
 }
 
-
 #define MAX_PLATFORM_COUNT 10
 #define MAX_BULLET_COUNT 48
 #define MAX_ENEMY_COUNT 8
+#define MAX_LETTER_COUNT 50
 
 #define ENEMY_GOING_LEFT 0x0010
 #define ENEMY_PLATFORM_MASK 0x000F
@@ -120,6 +150,9 @@ typedef struct{
 	
 	int platCount;
 	int enemyCount;
+	
+	int goalPos[2];
+	int reachedGoal;
 }LevelInit;
 
 bullet bullets[MAX_BULLET_COUNT];
@@ -129,10 +162,15 @@ enemy enemies[MAX_ENEMY_COUNT];
 int bulletCount = 0;
 int platformCount = 0;
 int enemyCount = 0;
+int letterCount = 0;
 
 volatile object_attributes* platformAttribs = &oam_memory[1];
 volatile object_attributes* enemyAttribs = &oam_memory[MAX_PLATFORM_COUNT + 1];
-volatile object_attributes* bulletAttribs = &oam_memory[MAX_PLATFORM_COUNT + MAX_ENEMY_COUNT + 2];
+volatile object_attributes* bulletAttribs = &oam_memory[MAX_PLATFORM_COUNT + MAX_ENEMY_COUNT + 1];
+volatile object_attributes* goalAttribs = &oam_memory[MAX_PLATFORM_COUNT + MAX_ENEMY_COUNT + MAX_BULLET_COUNT + 1];
+volatile object_attributes* goalUiAttribs = &oam_memory[MAX_PLATFORM_COUNT + MAX_ENEMY_COUNT + MAX_BULLET_COUNT + 2];
+
+volatile object_attributes* uiTextAttribs = &oam_memory[MAX_PLATFORM_COUNT + MAX_ENEMY_COUNT + MAX_BULLET_COUNT + 3];
 
 bullet* AddBullet(){
 	bullet* newBullet = &bullets[bulletCount];
@@ -164,6 +202,34 @@ void RemoveEnemy(enemy* enem){
 	*enem = enemies[enemyCount];
 }
 
+void ClearText(){
+	for(int i = 0; i < MAX_LETTER_COUNT; i++){
+		uiTextAttribs[i].attribute_two = 0;
+	}
+}
+
+void SetText(char* text){
+	static const int caseMask = 'a' ^ 'A';
+	
+	ClearText();
+	
+	int index = 0;
+	for(char* cursor = text; *cursor != '\0'; cursor++){
+		if(*cursor == ' '){
+			index++;
+			continue;
+		}
+		
+		char baseLetter = *cursor | caseMask;
+		if(baseLetter >= 'a' && baseLetter <= 'z'){
+			int spriteIdx = 13 + baseLetter - 'a';
+			uiTextAttribs[index].attribute_two = spriteIdx;
+			set_object_position(&uiTextAttribs[index], 8*index, SCREEN_HEIGHT-10);
+			index++;
+		}
+	}
+}
+
 int platInitLvl1[][2] = {{20,100}, {40,130}, {70,70}, {70,122}, {120,52}, {86,130}, {10,22}};
 int enemyInitLvl1[][2] = {{40,122}, {70,70}, {16, 20}};
 
@@ -176,15 +242,15 @@ int enemyInitLvl3[][2] = {{40,120}, {60, 105}, {55, 85}};
 int platInitLvl4[][2] = {{45,135}, {40,120}, {60, 105}, {55, 85}, {75, 68}, {55, 45}};
 int enemyInitLvl4[][2] = {{40,120}, {60, 105}, {55, 85}};
 
-#define MAKE_LEVEL(n) {&platInitLvl##n[0][0], &enemyInitLvl##n[0][0], ARRAY_LENGTH(platInitLvl##n), ARRAY_LENGTH(enemyInitLvl##n)}
+#define MAKE_LEVEL(n, g1, g2) {&platInitLvl##n[0][0], &enemyInitLvl##n[0][0], ARRAY_LENGTH(platInitLvl##n), ARRAY_LENGTH(enemyInitLvl##n), {g1, g2}, 0}
 
 LevelInit levels[] = {
-					MAKE_LEVEL(1)
-				   ,MAKE_LEVEL(2)
-				   ,MAKE_LEVEL(3)
-				   ,MAKE_LEVEL(4)};
+					MAKE_LEVEL(1, 10, 15)
+				   ,MAKE_LEVEL(2, 180, 63)
+				   ,MAKE_LEVEL(3, 150, 33)
+				   ,MAKE_LEVEL(4, 55, 38)};
 
-#undef MAKE_LEVEL				   
+#undef MAKE_LEVEL 
 				   
 int levelIdx = 0;				   
 
@@ -207,10 +273,10 @@ void LoadLevel(LevelInit init){
 	
 	for(int i = 0; i < MAX_PLATFORM_COUNT; i++){
 		volatile object_attributes* platformAttrib = &platformAttribs[i];
-		platformAttrib->attribute_zero = 0x4000; // This sprite is made up of 4bpp tiles and has the SQUARE shape.
-		platformAttrib->attribute_one = 0x4000; // This sprite has a size of 8x8 when the SQUARE shape is set.
-		platformAttrib->attribute_two = 1; // This sprite's base tile is the fifth tile in tile block 4, and this sprite should use colour palette 0.
-		
+		platformAttrib->attribute_zero = 0x4000;
+		platformAttrib->attribute_one = 0x4000; 
+		platformAttrib->attribute_two = 1; 
+	
 		if(i >= platformCount){
 			set_object_position(platformAttrib, -10, -10);
 		}
@@ -263,6 +329,12 @@ void LoadLevel(LevelInit init){
 	for(int i = 0; i < bulletCount; i++){
 		set_object_position(&bulletAttribs[i], bullets[i].position[0], bullets[i].position[1]);
 	}
+	
+	char lvlText[10] = "fab _";
+	
+	lvlText[4] = ("abcd"[levelIdx]);
+	
+	SetText(lvlText);
 }
 
 int main(void) {
@@ -276,21 +348,34 @@ int main(void) {
 	irqInit();
 	irqEnable(IRQ_VBLANK);
 	
-	volatile uint16 *paddle_tile_memory = (uint16 *)tile_memory[4][1];
+	volatile uint16* paddle_tile_memory = (uint16 *)tile_memory[4][1];
 	set_sprite_memory(platformSprite, paddle_tile_memory);
 	//for (int i = 0; i < (sizeof(tile4bpp) / 2) * 4; ++i) { paddle_tile_memory[i] = 0x1111; }
 	
-	volatile uint16 *ball_player_memory = (uint16 *)tile_memory[4][5];
+	volatile uint16* ball_player_memory = (uint16 *)tile_memory[4][5];
 	set_sprite_memory(ballSprite, ball_player_memory);
 	//for (int i = 0; i < (sizeof(tile4bpp) / 2); ++i) { ball_player_memory[i] = 0x2222; }
 	
-	volatile uint16 *enemy_memory = (uint16 *)tile_memory[4][6];
+	volatile uint16* enemy_memory = (uint16 *)tile_memory[4][6];
 	set_sprite_memory(enemySprite, enemy_memory);
 	//for (int i = 0; i < (sizeof(tile4bpp) / 2); ++i) { enemy_memory[i] = 0x3333; }
 	
-	volatile uint16 *bullet_memory = (uint16 *)tile_memory[4][7];
+	volatile uint16* bullet_memory = (uint16 *)tile_memory[4][7];
 	set_sprite_memory(bulletSprite, bullet_memory);
 	//for (int i = 0; i < (sizeof(tile4bpp) / 2); ++i) { bullet_memory[i] = 0x4554; }
+	
+	volatile uint16* goal_memory = (uint16 *)tile_memory[4][8];
+	set_sprite_memory(goalSprite, goal_memory);
+	
+	volatile uint16* ui_goal_memory = (uint16 *)tile_memory[4][9];
+	set_sprite_memory(goalUISprite, ui_goal_memory);
+	
+	Sprite font[] = {aFont, bFont, cFont, dFont, eFont, fFont};
+	
+	for(int i = 0; i < ARRAY_LENGTH(font); i++){
+		volatile uint16* uiFontMemory = (uint16 *)tile_memory[4][13+i];
+		set_sprite_memory(font[i], uiFontMemory);
+	}
 	
 	// Write the colour palette for our sprites into the first palette of
 	// 16 colours in colour palette memory (this palette has index 0).
@@ -303,6 +388,16 @@ int main(void) {
 	playerAttr->attribute_one = 0; // This sprite has a size of 8x8 when the SQUARE shape is set.
 	playerAttr->attribute_two = 5; // This sprite's base tile is the fifth tile in tile block 4, and this sprite should use colour palette 0.
 
+	goalAttribs->attribute_zero = 0; 
+	goalAttribs->attribute_one = 0;  
+	goalAttribs->attribute_two = 8;  
+	
+	goalUiAttribs->attribute_zero = 0x4000; 
+	goalUiAttribs->attribute_one = 0x4000;  
+	goalUiAttribs->attribute_two = 9; 
+
+	set_object_position(goalUiAttribs, SCREEN_WIDTH - 32, 0);
+	
 	// Initialize our variables to keep track of the state of the paddle and ball,
 	// and set their initial positions (by modifying their attributes in OAM).
 	const int player_width = 8, player_height = 8, ball_width = 8, ball_height = 8, platform_width = 32, platform_height = 8;
@@ -313,6 +408,8 @@ int main(void) {
 	int isFlip=0;
 	int prevKeys = 0;
 	
+	int goalsReached = 0;
+	
 	set_object_position(playerAttr, (int)(player_x+0.5f), (int)(player_y+0.5f));
 	
 	levelIdx = 0;
@@ -320,7 +417,24 @@ int main(void) {
 	
 	// Set the display parameters to enable objects, and use a 1D object->tile mapping.
 	REG_DISPLAY = 0x1000 | 0x0040;
-
+	
+	//Turn on sound
+	enable_sound();
+	
+	//Set left and right to full volume square waves
+	REG_SND_DMGCNT = SDMG_BUILD(SNDWV_SQR1, SNDWV_SQR1, 7, 7);
+	
+	//Set DMG volume to 100%
+	REG_SND_DSCNT = 0x02;
+	
+	//Set square generator for channel 1 to 100% volume, and sustain
+	REG_SND_CH1_LDE = SSQR_ENV_BUILD(12, 0, 7) | 0x0080;
+	
+	//Set frequency of channel 1
+	REG_SND_CH1_FRQ = 0x40;
+	
+	REG_SND_CH1_SWP = 0x0008;
+	
 	// Our main game loop
 	uint32 key_states = 0;
 	while (1) {
@@ -329,8 +443,7 @@ int main(void) {
 		// Get current key states (REG_KEY_INPUT stores the states inverted)
 		key_states = ~REG_KEY_INPUT & KEY_ANY;
 
-		//Trip out
-		//object_palette_memory[3]++;
+		
 		
 		// Note that our physics update is tied to the framerate rather than a fixed timestep.
 		int player_max_clamp_y = SCREEN_HEIGHT - player_height;
@@ -338,11 +451,11 @@ int main(void) {
 		
 		float new_player_x = player_x;
 		
-		if ((key_states & BUTTON_B) && isGrounded) { playerVel = 130.0f;}
+		if ((key_states & BUTTON_A) && isGrounded) { playerVel = 130.0f;}
 		if (key_states & KEY_LEFT) { new_player_x = clampf(player_x - playerSpeed, 0, player_max_clamp_x);isFlip=1;}
 		if (key_states & KEY_RIGHT) { new_player_x = clampf(player_x + playerSpeed, 0, player_max_clamp_x);isFlip=0;}
 		
-		if((key_states & BUTTON_A) && !(prevKeys & BUTTON_A)){
+		if((key_states & BUTTON_B) && !(prevKeys & BUTTON_B)){
 			bullet* newBullet = AddBullet();
 			newBullet->position[0] = player_x;
 			newBullet->position[1] = player_y;
@@ -473,12 +586,38 @@ int main(void) {
 				if(abs(bullets[i].position[0] - player_x + 4) < 8
 				&& abs(bullets[i].position[1] - player_y + 4) < 8){
 					player_x = 5.0f, player_y = 96.0f;
+					REG_SND_CH1_FRQ = SFREQ_RESET | SND_RATE(4246, 2);
 					LoadLevel(levels[levelIdx]);
 					break;
 				}
 			}
 			
 			set_object_position(&bulletAttribs[i], bullets[i].position[0], bullets[i].position[1]);
+		}
+		
+		if(enemyCount == 0){
+			if(levels[levelIdx].reachedGoal == 0){
+				REG_SND_CH1_FRQ = SFREQ_RESET | SND_RATE(7144, 2);
+				SetText("fab fab");
+				levels[levelIdx].reachedGoal = 1;
+			}
+		}
+		
+		if(levels[levelIdx].reachedGoal == 1){
+			if(abs(player_x - levels[levelIdx].goalPos[0]) < 8
+			&& abs(player_y - levels[levelIdx].goalPos[1]) < 8){
+				levels[levelIdx].reachedGoal = 2;
+				set_sprite_memory(*(goalUISprites[levelIdx]), (uint16 *)tile_memory[4][9+levelIdx]);
+				goalsReached |= (1 << levelIdx);
+				REG_SND_CH1_FRQ = SFREQ_RESET | SND_RATE(5666, 2);
+			}
+		}
+		
+		if(levels[levelIdx].reachedGoal == 1){
+			set_object_position(goalAttribs, levels[levelIdx].goalPos[0], levels[levelIdx].goalPos[1]);
+		}
+		else{
+			set_object_position(goalAttribs, -20, -20);
 		}
 		
 		if(player_x <= 0 && levelIdx > 0){

@@ -2,3 +2,15 @@ ballSprite:ball_sprite.bmp
 bulletSprite:bullet_sprite.bmp
 platformSprite:platform_sprite.bmp
 enemySprite:enemySprite.bmp
+goalSprite:goal_sprite.bmp
+goalUISprite:goalUI_sprite.bmp
+goalUI1Sprite:goalUI1_sprite.bmp
+goalUI2Sprite:goalUI2_sprite.bmp
+goalUI3Sprite:goalUI3_sprite.bmp
+goalUI4Sprite:goalUI4_sprite.bmp
+aFont:a.bmp
+bFont:b.bmp
+cFont:c.bmp
+dFont:d.bmp
+eFont:e.bmp
+fFont:f.bmp

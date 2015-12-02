@@ -228,7 +228,7 @@ void WriteAsset(char* folderName, Token varName, Token fileName, FILE* assetHead
 		}
 	}
 	
-	fprintf(assetHeader, "unsigned short %.*s_data[] = {\n", varName.length, varName.start);
+	fprintf(assetHeader, "static unsigned short %.*s_data[] = {\n", varName.length, varName.start);
 	for(int i = 0; i < width*height; i++){
 		fprintf(assetHeader, "%d,", indices[i]);
 	}
@@ -239,7 +239,7 @@ void WriteAsset(char* folderName, Token varName, Token fileName, FILE* assetHead
 		type = 0x4000;
 	}
 	
-	fprintf(assetHeader, "Sprite %.*s = {%d, %d, %d, %.*s_data\n};\n", varName.length, varName.start, type, width, height, varName.length, varName.start);
+	fprintf(assetHeader, "static Sprite %.*s = {%d, %d, %d, %.*s_data\n};\n", varName.length, varName.start, type, width, height, varName.length, varName.start);
 	
 	free(indices);
 	
