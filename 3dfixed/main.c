@@ -166,13 +166,13 @@ int main(void) {
 		FRAME_MEM[i] = 0;
 	}
 	
-	Wall w0 = {{fixedFromFlt(-2.2f), fixedFromFlt(0.2f)}, {fixedFromFlt(2.8f), fixedFromFlt(20.0f)}, RGB15(20,20,20)};
+	Wall w0 = {{fixedFromFlt(-2.2f), fixedFromFlt(1.2f)}, {fixedFromFlt(2.8f), fixedFromFlt(20.0f)}, RGB15(20,20,20)};
 	AddWall(w0);
 	
 	Wall w1 = {{fixedFromFlt(-1.0f), fixedFromFlt(2.0f)}, {fixedFromFlt(1.0f), fixedFromFlt(2.0f)}, RGB15(20,8,8)};
 	AddWall(w1);
 	
-	Wall w2 = {{fixedFromFlt(-1.4f), fixedFromFlt(1.5f)}, {fixedFromFlt(0.5f), fixedFromFlt(2.9f)}, RGB15(4,25,15)};
+	Wall w2 = {{fixedFromFlt(-1.4f), fixedFromFlt(1.9f)}, {fixedFromFlt(1.5f), fixedFromFlt(2.9f)}, RGB15(4,25,15)};
 	AddWall(w2);
 	
 	/*
@@ -197,7 +197,7 @@ int main(void) {
 	AddWall(w3);
 	*/
 	
-	fixed cameraPos[2] = {};
+	fixed cameraPos[2] = {makeFixed(-2), 0};
 	fixed cameraRot = 0.0f;
 	
 	uint32 prevKeys = 0;
