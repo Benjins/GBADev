@@ -7,6 +7,10 @@ typedef unsigned int uint32;
 typedef char int8;
 typedef short int16;
 typedef int int32;
+typedef int bool;
+
+#define true 1
+#define false 0
 
 typedef struct __attribute((packed))__{
 	short fileTag;
@@ -59,9 +63,11 @@ void free(void* ptr);
 
 void* memcpy(void* destination, const void* source, size_t num);
 
-void WriteAsset(char* folderName, Token varName, Token fileName, FILE* assetHeader, Palette* palette);
+void WriteAsset(char* folderName, Token varName, Token fileName, FILE* assetHeader, Palette* palette, bool tileMemory);
 
 void WritePalette(Palette* palette, FILE* assetHeader);
+
+void WriteBackground(char* folderName, Token varName, Token fileName, FILE* assetHeader);
 
 int main(int argc, char** argv){
 
@@ -137,7 +143,56 @@ int main(int argc, char** argv){
 		fileName.length = strcspn(cursor, whitespace);
 		cursor += fileName.length;
 		
-		WriteAsset(argv[1], varName, fileName, assetsHeaderFile, &palette);
+		WriteAsset(argv[1], varName, fileName, assetsHeaderFile, &palette, true);
+	}
+	
+	char backgroundFileName[256] = {};
+	strcat(backgroundFileName, argv[1]);
+	strcat(backgroundFileName, "/background.txt");
+	FILE* backgroundFile = fopen(backgroundFileName, "rb");
+	if(backgroundFile != NULL){
+		printf("Opening background file '%s'.\n", backgroundFileName);
+		
+		fseek(backgroundFile, 0, SEEK_END);
+		size_t backgroundFileSize = ftell(backgroundFile);
+		fseek(backgroundFile, 0, SEEK_SET);
+		
+		char* backgroundFileContents = (char*)malloc(backgroundFileSize+1);
+		fread(backgroundFileContents, 1, backgroundFileSize, backgroundFile);
+		fclose(backgroundFile);
+		
+		char* bgCursor = backgroundFileContents;
+		while(bgCursor != NULL && bgCursor >= backgroundFileContents && (bgCursor - backgroundFileContents) < backgroundFileSize){
+			bgCursor += strspn(bgCursor, whitespace);
+			
+			if(*bgCursor == '\0'){
+				break;
+			}
+			
+			char* colon = strchr(bgCursor, ':');
+			
+			if(*colon == '\0'){
+				break;
+			}
+			
+			Token varName;
+			varName.start = bgCursor;
+			varName.length = colon - bgCursor;
+			
+			bgCursor = colon + 1;
+			bgCursor += strspn(bgCursor, whitespace);
+			
+			Token fileName;
+			fileName.start = bgCursor;
+			fileName.length = strcspn(bgCursor, whitespace);
+			bgCursor += fileName.length;
+			
+			Palette bgPlt = {};
+			WriteAsset(argv[1], varName, fileName, assetsHeaderFile, &bgPlt, false);
+		}
+	}
+	else{
+		printf("Could not find '%s', skipping.\n", backgroundFileName);
 	}
 	
 	WritePalette(&palette, assetsHeaderFile);
@@ -155,7 +210,7 @@ typedef struct {
 	unsigned char Alpha;
 } RGBAPixel;
 
-void WriteAsset(char* folderName, Token varName, Token fileName, FILE* assetHeader, Palette* palette){
+void WriteAsset(char* folderName, Token varName, Token fileName, FILE* assetHeader, Palette* palette, bool tileMemory){
 	printf("Found asset named '%.*s' at file '%.*s'.\n", varName.length, varName.start, fileName.length, fileName.start);
 	
 	int folderNameLength = strlen(folderName);
@@ -204,15 +259,19 @@ void WriteAsset(char* folderName, Token varName, Token fileName, FILE* assetHead
 	unsigned char* indices = (unsigned char*) malloc(width*height);
 	
 	for(int j = 0; j < height; j++){
-		for(int i = 0; i < width; i++){
-			int blockIdx = i / 8;
+		for(int i = 0; i < width; i++){	
 			int index = j*width+i;
-			int memIdx = blockIdx * 64 + (height - 1 - j) * 8 + (i % 8);
+			int memIdx = index;
+			if(tileMemory){
+				int blockIdx = i / 8;
+				memIdx = blockIdx * 64 + (height - 1 - j) * 8 + (i % 8);
+			}
 			
 			int paletteIndex = -1;
 			rgb15 shiftedColor = RGB15(pixelData[index].Red / 8, pixelData[index].Green / 8, pixelData[index].Blue / 8);
 			for(int pIdx = 0; pIdx < palette->size; pIdx++){
 				if(palette->data[pIdx] == shiftedColor){
+					//printf("Set pltIdx to '%d'\n", pIdx);
 					paletteIndex = pIdx;
 					break;
 				}
@@ -222,16 +281,20 @@ void WriteAsset(char* folderName, Token varName, Token fileName, FILE* assetHead
 				palette->data[palette->size] = shiftedColor;
 				paletteIndex = palette->size;
 				palette->size++;
+				//printf("Increment palette->size to '%d'\n", palette->size);
 			}
 			
 			indices[memIdx] = paletteIndex;
 		}
 	}
 	
+	//printf("\n\nIndices:");
 	fprintf(assetHeader, "static unsigned short %.*s_data[] = {\n", varName.length, varName.start);
 	for(int i = 0; i < width*height; i++){
+		//printf("%d,", indices[i]);
 		fprintf(assetHeader, "%d,", indices[i]);
 	}
+	//printf("\n\n");
 	fprintf(assetHeader, "};\n");
 	
 	int type = 0;

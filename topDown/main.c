@@ -51,12 +51,26 @@ typedef tile4bpp tile_block[512];
 #define oam_memory ((volatile object_attributes *)MEM_OAM)
 #define tile_memory ((volatile tile_block *)MEM_VRAM)
 #define object_palette_memory ((volatile rgb15 *)(MEM_PAL + 0x200))
+#define bg0_palette_memory ((volatile rgb15 *)(MEM_PAL))
+
+typedef uint16 SCREENBLOCK[1024];
+
+#define scr_blk_mem          ((SCREENBLOCK*)MEM_VRAM)
+
+#define 	BG_REG_64x64   0xC000
+#define 	BG_REG_64x32   0x4000
+
+#define 	BG_CBB(n)   ((n)<<2)
+#define 	BG_SBB(n)   ((n)<<8)
+
+#define REG_BG0_CNT       (*(volatile uint16*)(MEM_IO+0x0008))
+#define REG_BG0_OFS      ((volatile int16*)(MEM_IO+0x0010))
 
 #define ARRAY_LENGTH(x) (sizeof(x)/sizeof((x)[0]))
 
 typedef struct {
 	int16 position[2];
-} object;
+} __attribute__((aligned(4))) object;
 
 #define MAX_OBJECT_COUNT 10
 object objects[MAX_OBJECT_COUNT];
@@ -111,6 +125,10 @@ int main(void) {
 	irqInit();
 	irqEnable(IRQ_VBLANK);
 	
+	for(int i = 0; i < ARRAY_LENGTH(paletteColors); i++){
+		bg0_palette_memory[i] = paletteColors[i];
+	}
+	
 	volatile uint16* empty_tile_memory = (uint16 *)tile_memory[4][0];
 	for (int i = 0; i < (sizeof(tile4bpp) / 2) * 4; ++i) { empty_tile_memory[i] = 0x0000; }
 	
@@ -135,8 +153,12 @@ int main(void) {
 		object_palette_memory[i] = paletteColors[i];
 	}
 	
-	int centerX = SCREEN_WIDTH/2 - 4;
-	int centerY = SCREEN_HEIGHT/2 - 4;
+	int playerX = 0, playerY = 0;
+	
+	const int player_height = 8, player_width = 8;
+	
+	const int centerX = SCREEN_WIDTH/2 - player_height/2;
+	const int centerY = SCREEN_HEIGHT/2 - player_width/2;
 	
 	playerAttribs->attribute_zero = 0; 
 	playerAttribs->attribute_one = 0; 
@@ -150,36 +172,44 @@ int main(void) {
 		objectAttrib->attribute_two = 2;
 		set_object_position(objectAttrib, -10, -10);
 	}
-	/*
+	
 	AddObject(-50, 50);
 	AddObject(-20, 150);
 	AddObject(210, -20);
 	AddObject(120, 70);
 	AddObject(180, 90);
 	AddObject(70, 120);
-	*/
-	AddObject(0, 0);
 		
-	int prevKeys = 0;
+	// Set the display parameters to enable objects, and use a 1D object->tile mapping, and enable BG0
+	REG_DISPLAY = 0x1000 | 0x0040 | 0x0100;
 	
-	// Set the display parameters to enable objects, and use a 1D object->tile mapping.
-	REG_DISPLAY = 0x1000 | 0x0040;
+	REG_BG0_CNT = BG_CBB(0) | BG_SBB(20) | BG_REG_64x32;
 	
-	// Our main game loop
-	uint32 key_states = 0;
+	REG_BG0_OFS[0] = 0;
+	REG_BG0_OFS[1] = 0;
 	
-	int playerX = 0, playerY = 0;
+	{
+		Sprite bgSprites[] = {bg1Sprite,bg2Sprite,bg3Sprite};
+		
+		for(int i = 0; i < 3; i++){
+			volatile uint16* bg_tile_mem = (uint16 *)tile_memory[0][i];
+			
+			set_sprite_memory(bgSprites[i],bg_tile_mem);
+		}
+	}
 	
-	int player_height = 8, player_width = 8;
+	volatile uint16* screenmapStart = &scr_blk_mem[20][0];
+	for(int i = 0; i < backMap.width*backMap.height; i++){
+		screenmapStart[i] = backMap_data[i];
+	}
 	
+	uint32 prevKeys = 0;
 	
 	while (1) {
 		VBlankIntrWait();
 		
-		// Get current key states (REG_KEY_INPUT stores the states inverted)
-		key_states = ~REG_KEY_INPUT & KEY_ANY;
+		uint32 key_states = ~REG_KEY_INPUT & KEY_ANY;
 		
-		// Note that our physics update is tied to the framerate rather than a fixed timestep.
 		int player_max_clamp_y = SCREEN_HEIGHT - player_height;
 		int player_max_clamp_x = SCREEN_WIDTH - player_width;
 		
@@ -187,12 +217,26 @@ int main(void) {
 		if (key_states & KEY_RIGHT) { playerX++;}
 		if (key_states & KEY_UP) { playerY--;}
 		if (key_states & KEY_DOWN) { playerY++;}
+		
+		REG_BG0_OFS[0] = playerX;
+		REG_BG0_OFS[1] = playerY;
 			
 		for(int i = 0; i < objectCount; i++){
 			volatile object_attributes* objectAttrib = &objectAttribs[i];
-			set_object_position(objectAttrib, objects[i].position[0] - playerX + centerX, objects[i].position[1] - playerY + centerY);
-		}
+			int screenX = objects[i].position[0] - playerX + centerX;
+			int screenY = objects[i].position[1] - playerY + centerY;
 			
+			//Prevent wrap-around from the truncation that set_pos uses.
+			//TODO: Use clamp instead?
+			if(screenX < -10 || screenX > SCREEN_WIDTH  + 10
+			|| screenY < -10 || screenY > SCREEN_HEIGHT + 10){
+				set_object_position(objectAttrib, -10, -10);
+			}
+			else{
+				set_object_position(objectAttrib, screenX, screenY);
+			}
+		}
+		
 		prevKeys = key_states;
 		
 	}

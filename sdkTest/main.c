@@ -308,8 +308,8 @@ void LoadLevel(LevelInit init){
 	
 	for(int i = 0; i < MAX_ENEMY_COUNT; i++){
 		volatile object_attributes* enemyAttrib = &enemyAttribs[i];
-		enemyAttrib->attribute_zero = 0; // This sprite is made up of 4bpp tiles and has the SQUARE shape.
-		enemyAttrib->attribute_one = 0; // This sprite has a size of 8x8 when the SQUARE shape is set.
+		enemyAttrib->attribute_zero = 0; 
+		enemyAttrib->attribute_one = 0;  
 		enemyAttrib->attribute_two = 6;
 		
 		if(i >= enemyCount){
@@ -319,8 +319,8 @@ void LoadLevel(LevelInit init){
 	
 	for(int i = 0; i < MAX_BULLET_COUNT; i++){
 		volatile object_attributes* bulletAttrib = &bulletAttribs[i];
-		bulletAttrib->attribute_zero = 0; // This sprite is made up of 4bpp tiles and has the SQUARE shape.
-		bulletAttrib->attribute_one = 0; // This sprite has a size of 8x8 when the SQUARE shape is set.
+		bulletAttrib->attribute_zero = 0; 
+		bulletAttrib->attribute_one = 0;  
 		bulletAttrib->attribute_two = 7;
 		set_object_position(bulletAttrib, -10, -10);
 	}
@@ -426,12 +426,6 @@ void ExecuteMenuAction(MenuAction action){
 }
 
 int main(void) {
-	// Write the tiles for our sprites into the 4th tile block in VRAM.
-	// Particularly, four tiles for an 8x32 paddle sprite, and 1 tile for an 8x8 ball sprite.
-	// 0x1111 = 0001000100010001 [4bpp = colour index 1, colour index 1, colour index 1, colour index 1]
-	// 0x2222 = 0002000200020002 [4bpp = colour index 2, colour index 2, colour index 2, colour index 2]
-	// NOTE: We're using our own memory writing code here to avoid the byte-granular writes that
-	// something like 'memset' might make (GBA VRAM doesn't support byte-granular writes).
 	
 	irqInit();
 	irqEnable(IRQ_VBLANK);
@@ -474,14 +468,14 @@ int main(void) {
 	}
 	
 	// Write the colour palette for our sprites into the first palette of
-	// 16 colours in colour palette memory (this palette has index 0).
+	// 16 colours in colour palette memory (this palette has index 0 as blank).
 	for(int i = 0; i < ARRAY_LENGTH(paletteColors); i++){
 		object_palette_memory[i] = paletteColors[i];
 	}
 	
-	playerAttr->attribute_zero = 0; // This sprite is made up of 4bpp tiles and has the SQUARE shape.
-	playerAttr->attribute_one = 0; // This sprite has a size of 8x8 when the SQUARE shape is set.
-	playerAttr->attribute_two = 5; // This sprite's base tile is the fifth tile in tile block 4, and this sprite should use colour palette 0.
+	playerAttr->attribute_zero = 0; 
+	playerAttr->attribute_one = 0;  
+	playerAttr->attribute_two = 5;  
 
 	goalAttribs->attribute_zero = 0; 
 	goalAttribs->attribute_one = 0;  
@@ -540,11 +534,9 @@ int main(void) {
 	while (1) {
 		VBlankIntrWait();
 		
-		// Get current key states (REG_KEY_INPUT stores the states inverted)
 		key_states = ~REG_KEY_INPUT & KEY_ANY;
 		
 		if(currMode == PLAY){
-			// Note that our physics update is tied to the framerate rather than a fixed timestep.
 			int player_max_clamp_y = SCREEN_HEIGHT - player_height;
 			int player_max_clamp_x = SCREEN_WIDTH - player_width;
 			
@@ -575,8 +567,6 @@ int main(void) {
 			if((key_states & BUTTON_START) && !(prevKeys & BUTTON_START)){
 				EnterMenuMode();
 			}
-			
-			//platforms[2].position[1] = (platforms[2].position[1] - 1) % 200;
 			
 			if(!isGrounded || playerVel >= 0){
 				player_y = clampf(player_y - playerVel/60, 0, player_max_clamp_y);
