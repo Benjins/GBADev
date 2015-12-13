@@ -41,6 +41,12 @@ typedef uint16 rgb15;
 // Form a 16-bit BGR GBA colour from three component values
 static inline rgb15 RGB15(int r, int g, int b) { return r | (g << 5) | (b << 10); }
 
+static inline int min(int a, int b){return a < b ? a : b;}
+static inline int max(int a, int b){return a > b ? a : b;}
+static inline int clamp(int val, int _min, int _max){ return min(_max, max(val, _min));}
+
+static inline int abs(int x){return (x < 0) ? -x : x;}
+
 #define FIXED_DECIMAL 8
 #define FIXED_ONE (1 << FIXED_DECIMAL)
 typedef int32 fixed;
@@ -77,7 +83,7 @@ static inline fixed mySin(fixed in){
 	in = in - makeFixed(180);
 	
 	in = fixMult(in, deg2rad);
-	return in - fixPow(in,3)/6 + fixPow(in,5)/120 - fixPow(in,7)/5040;
+	return in - fixPow(in,3)/6 + fixPow(in,5)/120 - fixPow(in,7)/5040 + fixPow(in,9)/362880;
 }
 
 static inline fixed myCos(fixed in){
@@ -87,24 +93,38 @@ static inline fixed myCos(fixed in){
 	in = in - makeFixed(180);
 	
 	in = fixMult(in, deg2rad);
-	return FIXED_ONE - fixMult(in,in)/4 + fixPow(in,4)/24 - fixPow(in,6)/720;
+	return FIXED_ONE - fixMult(in,in)/4 + fixPow(in,4)/24 - fixPow(in,6)/720 + fixPow(in,8)/40320;
 }
 
 static inline fixed mySqrt(fixed in){
+	int reduce = (in >= makeFixed(4));
+	if(reduce){
+		in /= 4;
+	}
+	
 	in -= FIXED_ONE;
 	
-	return FIXED_ONE + in/2 - fixMult(in,in)/8 + fixPow(in,3)/16 - 5*fixPow(in,4)/128 + 7*fixPow(in,5)/256;
+	fixed guess = FIXED_ONE + in/2 - fixMult(in,in)/8 + fixPow(in,3)/16 - 5*fixPow(in,4)/128 + 7*fixPow(in,5)/256;
+	
+	in += FIXED_ONE;
+	
+	for(int i = 0; i < 10; i++){
+		if(guess == 0){
+			break;
+		}
+		guess = (guess + fixDiv(in, guess))/2;
+	}
+	
+	if(reduce){
+		guess *= 2;
+	}
+	
+	return abs(guess);
 }
 
 static inline int roundFixedToInt(fixed x){
 	return (x + FIXED_ONE/2) >> FIXED_DECIMAL;
 }
-
-static inline int min(int a, int b){return a < b ? a : b;}
-static inline int max(int a, int b){return a > b ? a : b;}
-static inline int clamp(int val, int _min, int _max){ return min(_max, max(val, _min));}
-
-static inline int abs(int x){return (x < 0) ? -x : x;}
 
 typedef struct{
 	fixed startPos[2];
@@ -156,14 +176,26 @@ int main(void) {
 	AddWall(w2);
 	
 	/*
-	Wall w3 = {{-0.2f, 0.5f}, {0.2f, 0.5f}, RGB15(15,15,15)};
+	Wall w3 = {{-0.2f, 0.5f}, {0.2f, 0.5f}, RGB15(15,15,2)};
 	AddWall(w3);
 	
-	Wall w4 = {{-2.4f, 3.5f}, {2.5f, 0.9f}, RGB15(3,6,25)};
+	Wall w4 = {{-2.0f, 3.5f}, {2.5f, 0.9f}, RGB15(3,6,25)};
 	AddWall(w4);
 	*/
 	
-	rgb15 col = RGB15(20,20,10);
+	/*
+	Wall w0 = {{fixedFromFlt(-10.0f), fixedFromFlt(-10.0f)}, {fixedFromFlt(-10.0f), fixedFromFlt(10.0f)}, RGB15(30,2,2)};
+	AddWall(w0);
+	
+	Wall w1 = {{fixedFromFlt(-10.0f), fixedFromFlt(-10.0f)}, {fixedFromFlt(10.0f), fixedFromFlt(-10.0f)}, RGB15(2,30,2)};
+	AddWall(w1);
+	
+	Wall w2 = {{fixedFromFlt(-10.0f), fixedFromFlt(10.0f)}, {fixedFromFlt(10.0f), fixedFromFlt(10.0f)}, RGB15(2,2,30)};
+	AddWall(w2);
+	
+	Wall w3 = {{fixedFromFlt(10.0f), fixedFromFlt(10.0f)}, {fixedFromFlt(10.0f), fixedFromFlt(-10.0f)}, RGB15(28,28,4)};
+	AddWall(w3);
+	*/
 	
 	fixed cameraPos[2] = {};
 	fixed cameraRot = 0.0f;
@@ -173,17 +205,11 @@ int main(void) {
 	fixed turnSpeed = fixedFromFlt(4.0f);
 	int isFast = 1;
 	
+	rgb15 cols[SCREEN_WIDTH];
+	uint8 heights[SCREEN_WIDTH];
+	
 	while(1){
 		uint32 keyStates = ~REG_KEY_INPUT & KEY_ANY;
-		
-		VBlankIntrWait();
-		
-		//Might not need it if already drawing to each pixel
-#if 0
-		for(int i = 0; i < SCREEN_WIDTH*SCREEN_HEIGHT; i++){
-			FRAME_MEM[i] = 0;
-		}
-#endif
 		
 		fixed forwardVec[2] = {mySin(cameraRot), myCos(cameraRot)};
 		fixed rightVec[2]   = {forwardVec[1], -forwardVec[0]};
@@ -203,6 +229,18 @@ int main(void) {
 			}
 		}
 		
+		if (keyStates & BUTTON_A) { 
+			for(int i = 0; i < 2; i++){
+				cameraPos[i] -= rightVec[i]/4;
+			} 
+		}
+		
+		if (keyStates & BUTTON_B) {
+			for(int i = 0; i < 2; i++){
+				cameraPos[i] += rightVec[i]/4;
+			}
+		}
+		
 		if ((keyStates & BUTTON_SELECT) && !(prevKeys & BUTTON_SELECT)) {
 			isFast = !isFast;
 			
@@ -214,7 +252,11 @@ int main(void) {
 			}
 		}
 		
-		static const fixed camWidth = fixedFromFlt(2.3f);
+		if ((keyStates & BUTTON_START) && !(prevKeys & BUTTON_START)) {
+			cameraRot = 0;
+		}
+		
+		static const fixed camWidth = fixedFromFlt(1.0f);
 		fixed rayOrigin[2] = {cameraPos[0] - fixMult(rightVec[0],camWidth/2), 
 							  cameraPos[1] - fixMult(rightVec[1],camWidth/2)};
 		
@@ -223,37 +265,38 @@ int main(void) {
 		rgb15 ceilCol = RGB15(16,16,16);
 		
 		for(int x = 0; x < SCREEN_WIDTH; x ++){
-			
 			RaycastHit hit = Raycast(rayOrigin, forwardVec);
 			
 			if(hit.wasHit){
-				fixed hitHeight = fixDiv(makeFixed(SCREEN_HEIGHT), hit.depth)*100;
+				fixed hitHeight = fixDiv(makeFixed(SCREEN_HEIGHT), hit.depth + fixedFromFlt(0.5f))*100;
 				int hitScreenHeight = roundFixedToInt(hitHeight);
 				
-				int start = clamp(SCREEN_HEIGHT/2 - (hitScreenHeight/2), 0, SCREEN_HEIGHT);
-				int end   = clamp(SCREEN_HEIGHT/2 + (hitScreenHeight/2), 0, SCREEN_HEIGHT);
-				
-				for(int y = 0; y < start; y++){
-					FRAME_MEM[y*SCREEN_WIDTH+x] = ceilCol;
-				}
-				for(int y = start; y < end; y++){
-					FRAME_MEM[y*SCREEN_WIDTH+x] = hit.col;
-				}
-				for(int y = end; y < SCREEN_HEIGHT; y++){
-					FRAME_MEM[y*SCREEN_WIDTH+x] = floorCol;
-				}
+				cols[x] = hit.col;
+				heights[x] = hitScreenHeight;
 			}
 			else{
-				for(int y = 0; y < SCREEN_HEIGHT/2; y++){
-					FRAME_MEM[y*SCREEN_WIDTH+x] = ceilCol;
-				}
-				for(int y = SCREEN_HEIGHT/2; y < SCREEN_HEIGHT; y++){
-					FRAME_MEM[y*SCREEN_WIDTH+x] = floorCol;
-				}
+				heights[x] = 0;
 			}
 			
 			for(int i = 0; i < 2; i++){
 				rayOrigin[i] += fixMult(rightVec[0],camWidth)/SCREEN_WIDTH;
+			}
+		}
+		
+		VBlankIntrWait();
+		
+		for(int x = 0; x < SCREEN_WIDTH; x++){
+			int start = clamp(SCREEN_HEIGHT/2 - (heights[x]/2), 0, SCREEN_HEIGHT);
+			int end   = clamp(SCREEN_HEIGHT/2 + (heights[x]/2), 0, SCREEN_HEIGHT);
+			
+			for(int y = 0; y < start; y++){
+				FRAME_MEM[y*SCREEN_WIDTH+x] = ceilCol;
+			}
+			for(int y = start; y < end; y++){
+				FRAME_MEM[y*SCREEN_WIDTH+x] = cols[x];
+			}
+			for(int y = end; y < SCREEN_HEIGHT; y++){
+				FRAME_MEM[y*SCREEN_WIDTH+x] = floorCol;
 			}
 		}
 		
@@ -282,6 +325,9 @@ RaycastHit Raycast(fixed* cameraPos, fixed* cameraDir){
 			fixed startDist = fixMult(originToStart[0],originToStart[0]) + fixMult(originToStart[1],originToStart[1]);
 			fixed endDist = fixMult(originToEnd[0],originToEnd[0]) + fixMult(originToEnd[1],originToEnd[1]);
 			
+			//startDist = mySqrt(startDist);
+			//endDist = mySqrt(endDist);
+			
 			fixed projSpan = abs(endCrossDir) + abs(startCrossDir);
 			fixed startPortion = fixDiv(abs(startCrossDir), projSpan);
 			fixed castDist = fixMult(startPortion, startDist) + fixMult(FIXED_ONE - startPortion, endDist);
@@ -293,38 +339,6 @@ RaycastHit Raycast(fixed* cameraPos, fixed* cameraDir){
 				hit.col = walls[i].col;
 			}
 		}
-	
-#if 0
-		fixed wallVec[2] = {walls[i].endPos[0] - walls[i].startPos[0], walls[i].endPos[1] - walls[i].startPos[1]};
-		fixed diffVec[2] = {cameraPos[0] - walls[i].startPos[0], cameraPos[1] - walls[i].startPos[1]};
-		
-		fixed projMultNum = 0;
-		fixed projMultDen = 0;
-		for(int k = 0; k < 2; k++){
-			projMultNum += fixMult(diffVec[k],wallVec[k]);
-			projMultDen += fixMult(wallVec[k],wallVec[k]);
-		}
-		
-		fixed projMult = fixDiv(projMultNum,projMultDen);
-		
-		fixed projVec[2] = {fixMult(wallVec[0],projMult), fixMult(wallVec[1],projMult)};
-		fixed projVecSub[2] = {projVec[0] - diffVec[0], projVec[1] - diffVec[1]};
-		
-		fixed castNum = fixMult(cameraDir[0], projVecSub[0])+fixMult(cameraDir[1], projVecSub[1]);
-		fixed castDen = fixMult(projVecSub[0],projVecSub[0])+fixMult(projVecSub[1],projVecSub[1]);
-		fixed castDist = fixDiv(castNum, castDen);
-						
-		fixed wallDistAndProjDist[2] = {wallVec[0] - projVec[0], wallVec[1] - projVec[1]};
-		fixed wallDist =  fixMult(wallDistAndProjDist[0], wallDistAndProjDist[0])
-						+ fixMult(wallDistAndProjDist[1], wallDistAndProjDist[1]);
-		
-		fixed sqrtCastDist = mySqrt(castDist);
-		if(castDist > 0 && castDist < wallDist && hit.depth > sqrtCastDist){
-			hit.wasHit = 1;
-			hit.depth = sqrtCastDist;
-			hit.col = walls[i].col;
-		}
-#endif
 	}
 	
 	return hit;
