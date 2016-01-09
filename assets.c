@@ -46,7 +46,7 @@ typedef struct{
 	int size;
 } Palette;
 
-//I don't like including header files just a few function.
+//I don't like including header files for just a few functions.
 char* strcat(char* dest, char* src);
 
 char* strchr(char* str, int character);
@@ -261,7 +261,7 @@ void WriteAsset(char* folderName, Token varName, Token fileName, FILE* assetHead
 	for(int j = 0; j < height; j++){
 		for(int i = 0; i < width; i++){	
 			int index = j*width+i;
-			int memIdx = index;
+			int memIdx = (height - 1 - j) * width + i;
 			if(tileMemory){
 				int blockIdx = i / 8;
 				memIdx = blockIdx * 64 + (height - 1 - j) * 8 + (i % 8);

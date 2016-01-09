@@ -1,1 +1,1 @@
-backMap:shortMap.bmp
+backMap:shortMap.bmp:bg1Sprite,bg2Sprite,bg3Sprite

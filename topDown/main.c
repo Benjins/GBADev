@@ -52,6 +52,7 @@ typedef tile4bpp tile_block[512];
 #define tile_memory ((volatile tile_block *)MEM_VRAM)
 #define object_palette_memory ((volatile rgb15 *)(MEM_PAL + 0x200))
 #define bg0_palette_memory ((volatile rgb15 *)(MEM_PAL))
+#define bg1_palette_memory ((volatile rgb15 *)(MEM_PAL + 0x050))
 
 typedef uint16 SCREENBLOCK[1024];
 
@@ -65,6 +66,9 @@ typedef uint16 SCREENBLOCK[1024];
 
 #define REG_BG0_CNT       (*(volatile uint16*)(MEM_IO+0x0008))
 #define REG_BG0_OFS      ((volatile int16*)(MEM_IO+0x0010))
+
+#define REG_BG1_CNT       (*(volatile uint16*)(MEM_IO+0x000A))
+#define REG_BG1_OFS      ((volatile int16*)(MEM_IO+0x0014))
 
 #define ARRAY_LENGTH(x) (sizeof(x)/sizeof((x)[0]))
 
@@ -127,6 +131,8 @@ int main(void) {
 	
 	for(int i = 0; i < ARRAY_LENGTH(paletteColors); i++){
 		bg0_palette_memory[i] = paletteColors[i];
+		//bg1_palette_memory[i] = paletteColors[i];
+		object_palette_memory[i] = paletteColors[i];
 	}
 	
 	volatile uint16* empty_tile_memory = (uint16 *)tile_memory[4][0];
@@ -145,12 +151,6 @@ int main(void) {
 	for(int i = 0; i < ARRAY_LENGTH(font); i++){
 		volatile uint16* uiFontMemory = (uint16 *)tile_memory[4][14+i];
 		set_sprite_memory(font[i], uiFontMemory);
-	}
-	
-	// Write the colour palette for our sprites into the first palette of
-	// 16 colours in colour palette memory (this palette has index 0).
-	for(int i = 0; i < ARRAY_LENGTH(paletteColors); i++){
-		object_palette_memory[i] = paletteColors[i];
 	}
 	
 	int playerX = 0, playerY = 0;
@@ -181,29 +181,30 @@ int main(void) {
 	AddObject(70, 120);
 		
 	// Set the display parameters to enable objects, and use a 1D object->tile mapping, and enable BG0
-	REG_DISPLAY = 0x1000 | 0x0040 | 0x0100;
+	REG_DISPLAY = 0x1000 | 0x0040 | 0x0100 ;// | 0x0200;
 	
-	REG_BG0_CNT = BG_CBB(0) | BG_SBB(20) | BG_REG_64x32;
+	REG_BG0_CNT = BG_CBB(0) | BG_SBB(24) | BG_REG_64x32;
+	//REG_BG1_CNT = BG_CBB(1) | BG_SBB(6) | BG_REG_64x32;
 	
-	REG_BG0_OFS[0] = 0;
-	REG_BG0_OFS[1] = 0;
+	//uint16 bg1_tileCols[] = {0x3421, 0x2333, 0x1220, 0x1001, 0x2333, 0x2302, 0x4424, 0x4112, 0x2314, 0x2222};
 	
 	{
-		Sprite bgSprites[] = {bg1Sprite,bg2Sprite,bg3Sprite};
+		Sprite bgSprites[] = {bg1Sprite,bg2Sprite,bg3Sprite,bg2Sprite,bg2Sprite,bg2Sprite};
 		
-		for(int i = 0; i < 3; i++){
-			volatile uint16* bg_tile_mem = (uint16 *)tile_memory[0][i];
-			
-			set_sprite_memory(bgSprites[i],bg_tile_mem);
+		for(int i = 0; i < ARRAY_LENGTH(bgSprites); i++){
+			volatile uint16* bg0_tile_mem = (uint16 *)tile_memory[0][i];
+		
+			set_sprite_memory(bgSprites[i], bg0_tile_mem);
 		}
 	}
 	
-	volatile uint16* screenmapStart = &scr_blk_mem[20][0];
-	for(int i = 0; i < backMap.width*backMap.height; i++){
-		screenmapStart[i] = backMap_data[i];
-	}
+	volatile uint16* screenmap0Start = &scr_blk_mem[24][0];
 	
 	uint32 prevKeys = 0;
+	
+	//We set them to -1, so that we force an update (since they are immediately set to 0)
+	int bgTileOffsetX = -1;
+	int bgTileOffsetY = -1;
 	
 	while (1) {
 		VBlankIntrWait();
@@ -218,8 +219,52 @@ int main(void) {
 		if (key_states & KEY_UP) { playerY--;}
 		if (key_states & KEY_DOWN) { playerY++;}
 		
-		REG_BG0_OFS[0] = playerX;
-		REG_BG0_OFS[1] = playerY;
+		int bgOffsetX = playerX%8;
+		int bgOffsetY = playerY%8;
+		
+		int newBGTileOffsetX = playerX/8;
+		int newBGTileOffsetY = playerY/8;
+		
+		if(bgOffsetX < 0){
+			bgOffsetX += 8;
+			newBGTileOffsetX--;
+		}
+		
+		if(bgOffsetY < 0){
+			bgOffsetY += 8;
+			newBGTileOffsetY--;
+		}
+		
+		REG_BG0_OFS[0] = bgOffsetX;
+		REG_BG0_OFS[1] = bgOffsetY;
+		
+		if((newBGTileOffsetX != bgTileOffsetX) || (newBGTileOffsetY != bgTileOffsetY)){		
+			bgTileOffsetX = newBGTileOffsetX;
+			bgTileOffsetY = newBGTileOffsetY;
+			
+			for(int j = 0; j < 32; j++){
+				for(int i = 0; i < 32; i++){
+					int backMapX = (i+bgTileOffsetX)%backMap.width;
+					int backMapY = (j+bgTileOffsetY)%backMap.height;
+					if(backMapX < 0){
+						backMapX += backMap.width;
+					}
+					if(backMapY < 0){
+						backMapY += backMap.height;
+					}
+					int backMapIdx = backMapY*backMap.width+backMapX;
+					
+					int scrMapIdx = j*32+i;
+					screenmap0Start[scrMapIdx] = backMap_data[backMapIdx];
+					if(backMapIdx < 0){
+						for(int k = 0; k < 32*32; k++){
+							screenmap0Start[k] = 1;
+						}
+						break;
+					}
+				}
+			}
+		}
 			
 		for(int i = 0; i < objectCount; i++){
 			volatile object_attributes* objectAttrib = &objectAttribs[i];

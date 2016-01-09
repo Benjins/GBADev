@@ -6,3 +6,7 @@
 *.nds
 
 *.exe
+*.obj
+.vs/
+*.ilk
+*.pdb
