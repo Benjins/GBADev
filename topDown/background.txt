@@ -1,1 +1,2 @@
-backMap:shortMap.bmp:bg1Sprite,bg2Sprite,bg3Sprite
+backMap:shortMap-Copy.bmp:bg1.bmp,bg2.bmp,bg3.bmp 
+ 

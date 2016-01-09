@@ -25,6 +25,3 @@ xFont:x.bmp
 yFont:y.bmp
 zFont:z.bmp
 playerSprite:player_sprite.bmp
-bg1Sprite:bg1.bmp
-bg2Sprite:bg2.bmp
-bg3Sprite:bg3.bmp

@@ -188,15 +188,12 @@ int main(void) {
 	
 	//uint16 bg1_tileCols[] = {0x3421, 0x2333, 0x1220, 0x1001, 0x2333, 0x2302, 0x4424, 0x4112, 0x2314, 0x2222};
 	
-	{
-		Sprite bgSprites[] = {bg1Sprite,bg2Sprite,bg3Sprite,bg2Sprite,bg2Sprite,bg2Sprite};
-		
-		for(int i = 0; i < ARRAY_LENGTH(bgSprites); i++){
-			volatile uint16* bg0_tile_mem = (uint16 *)tile_memory[0][i];
-		
-			set_sprite_memory(bgSprites[i], bg0_tile_mem);
-		}
+	for(int i = 0; i < backMap.bgCount; i++){
+		volatile uint16* bg0_tile_mem = (uint16 *)tile_memory[0][i];
+	
+		set_sprite_memory(backMap.bgSprites[i], bg0_tile_mem);
 	}
+	
 	
 	volatile uint16* screenmap0Start = &scr_blk_mem[24][0];
 	
@@ -244,24 +241,18 @@ int main(void) {
 			
 			for(int j = 0; j < 32; j++){
 				for(int i = 0; i < 32; i++){
-					int backMapX = (i+bgTileOffsetX)%backMap.width;
-					int backMapY = (j+bgTileOffsetY)%backMap.height;
+					int backMapX = (i+bgTileOffsetX)%backMap.map.width;
+					int backMapY = (j+bgTileOffsetY)%backMap.map.height;
 					if(backMapX < 0){
-						backMapX += backMap.width;
+						backMapX += backMap.map.width;
 					}
 					if(backMapY < 0){
-						backMapY += backMap.height;
+						backMapY += backMap.map.height;
 					}
-					int backMapIdx = backMapY*backMap.width+backMapX;
+					int backMapIdx = backMapY*backMap.map.width+backMapX;
 					
 					int scrMapIdx = j*32+i;
-					screenmap0Start[scrMapIdx] = backMap_data[backMapIdx];
-					if(backMapIdx < 0){
-						for(int k = 0; k < 32*32; k++){
-							screenmap0Start[k] = 1;
-						}
-						break;
-					}
+					screenmap0Start[scrMapIdx] = backMap.map.data[backMapIdx];
 				}
 			}
 		}

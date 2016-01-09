@@ -145,3 +145,42 @@ BitmapData LoadBMPFile(char* fileName) {
 	free(fileBuffer);
 	return {data, width, height};
 }
+
+void WriteBMPFile(char * fileName, BitmapData * bmp){
+	FILE* bmpFile = fopen(fileName, "wb");
+
+	if (bmpFile == NULL) {
+		printf("\n\nError: could not open file '%s' for writing.\n", fileName);
+		return;
+	}
+
+	int imageDataSize = 3 * bmp->width*bmp->height;
+
+	BitMapHeader header = {};
+	header.bitDepth = 24;
+	header.imageWidth = bmp->width;
+	header.imageHeight = bmp->height;
+	header.imageDataOffset = sizeof(header);
+	header.headerSize = 40;
+	header.fileTag = 0x4D42;
+	header.fileSize = sizeof(header) + imageDataSize;
+	header.numColorPlanes = 1;
+
+	fwrite(&header, 1, sizeof(header), bmpFile);
+	
+	unsigned char* dataBuffer = (unsigned char*)malloc(imageDataSize);
+
+	int* bmpDataCast = (int*)bmp->data;
+
+	for (int i = 0; i < bmp->width * bmp->height; i++) {
+		dataBuffer[3 * i]     = (bmpDataCast[i] & 0xFF);
+		dataBuffer[3 * i + 1] = (bmpDataCast[i] & 0xFF00 >> 8);
+		dataBuffer[3 * i + 2] = (bmpDataCast[i] & 0xFF0000 >> 16);
+	}
+
+	fwrite(dataBuffer, 1, imageDataSize, bmpFile);
+
+	fclose(bmpFile);
+
+	free(dataBuffer);
+}

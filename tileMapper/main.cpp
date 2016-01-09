@@ -1,4 +1,5 @@
 #include <Windows.h>
+#include <Windowsx.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,6 +18,15 @@ BITMAPINFO bmpInfo = {};
 
 #define ARRAY_COUNT(x) (sizeof(x) / sizeof((x)[0]))
 
+#define SAFE_FREE(x) {if(x){free(x); (x) = nullptr;}}
+#define SAFE_DELETE(x) {if(x){delete (x); (x) = nullptr;}}
+#define SAFE_DELETE_ARR(x) {if(x){delete[] (x); (x) = nullptr;}}
+
+typedef struct {
+	char* start;
+	int length;
+}Token;
+
 inline float clamp(float val, float min, float max) {
 	return MIN(max, MAX(min, val));
 }
@@ -24,10 +34,14 @@ inline float clamp(float val, float min, float max) {
 inline int clamp(int val, int min, int max) {
 	return MIN(max, MAX(min, val));
 }
+
+inline bool RangeCheck(int a, int b, int c) {
+	return (a < b) && (b < c);
+}
  
 enum KeyState {
 	DOWN = 0,
-	RELASE = 1,
+	RELEASE = 1,
 	PRESS = 2,
 	HOLD = 3
 };
@@ -38,21 +52,101 @@ inline KeyState StateFromBools(bool wasDown, bool isDown) {
 	return (KeyState)((wasDown ? 1 : 0) | (isDown ? 2 : 0));
 }
 
-BitmapData spriteTiles[128] = {};
-int spriteTileCount = 0;
+struct BackgroundAsset {
+	char* backMap;
+	char* backMapFile;
+	char** sprites;
+	int spriteCount;
+};
+
 BitmapData backMap = {};
 
 float zoomLevel = 1.0f;
 int xOffset = 0;
 int yOffset = 0;
+int currentPaintIndex = 0;
+
+BitmapData* bgSprites = NULL;
+int bgSpriteCount = 0;
 
 void RenderGradient();
 void WindowsPaintWindow(HWND hwnd);
 
+BackgroundAsset ParseBGAssetFile(char* fileName) {
+	FILE* bgFile = NULL;
+	fopen_s(&bgFile, fileName, "rb");
+
+	char* whitespace = "\n\r\t ";
+	char* spaceAndColon = "\t :";
+	char* spaceAndComma = "\t ,";
+
+	if (bgFile != NULL) {
+		fseek(bgFile, 0, SEEK_END);
+		size_t fileSize = ftell(bgFile);
+		fseek(bgFile, 0, SEEK_SET);
+
+		char* fileBuffer = (char*)malloc(fileSize + 1);
+		fread(fileBuffer, 1, fileSize, bgFile);
+		fileBuffer[fileSize] = '\0';
+		fclose(bgFile);
+
+		BackgroundAsset bgAsset = {};
+
+		char* backMapStart = fileBuffer + strspn(fileBuffer, whitespace);
+		int backMapLength = strcspn(backMapStart, spaceAndColon);
+
+		bgAsset.backMap = (char*)malloc(backMapLength+1);
+		memcpy(bgAsset.backMap, backMapStart, backMapLength);
+		bgAsset.backMap[backMapLength] = '\0';
+
+		char* backMapEnd = backMapStart + backMapLength;
+		char* backMapFileStart = backMapEnd + strspn(backMapEnd, spaceAndColon);
+		int backMapFileLength = strcspn(backMapFileStart, spaceAndColon);
+
+		bgAsset.backMapFile = (char*)malloc(backMapFileLength + 1);
+		memcpy(bgAsset.backMapFile, backMapFileStart, backMapFileLength);
+		bgAsset.backMapFile[backMapFileLength] = '\0';
+		
+		char* bgCursor = backMapFileStart + backMapFileLength + 1;
+		char* nextComma = bgCursor;
+		char* nextNewline = strstr(bgCursor, "\n");
+		while (nextComma != NULL && (nextComma < nextNewline || nextNewline == NULL)) {
+			bgCursor += strspn(bgCursor, whitespace);
+
+			char* endOfFileName = bgCursor + strcspn(bgCursor, " \t\n\r,");
+			Token spriteFileName;
+			spriteFileName.start = bgCursor;
+			spriteFileName.length = endOfFileName - bgCursor;
+
+			char** newSpriteNames = (char**)malloc((bgAsset.spriteCount+1)*sizeof(char*));
+			memcpy(newSpriteNames, bgAsset.sprites, bgAsset.spriteCount*sizeof(char*));
+
+			newSpriteNames[bgAsset.spriteCount] = (char*)malloc(spriteFileName.length+1);
+			memcpy(newSpriteNames[bgAsset.spriteCount], spriteFileName.start, spriteFileName.length);
+			newSpriteNames[bgAsset.spriteCount][spriteFileName.length] = '\0';
+			SAFE_FREE(bgAsset.sprites);
+			bgAsset.sprites = newSpriteNames;
+
+			nextComma = strstr(bgCursor, ",");
+			nextNewline = strstr(bgCursor, "\n");
+			bgCursor = nextComma + 1;
+			bgAsset.spriteCount++;
+		}
+
+		free(fileBuffer);
+
+		return bgAsset;
+	}
+	else {
+		printf("Could not open bg file '%s'.", fileName);
+		return{};
+	}
+}
+
 int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 					 LPSTR cmdLine, int cmdShow) {
 	
-
+	
 	WNDCLASS windowCls = {};
 	windowCls.hInstance = inst;
 	windowCls.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
@@ -61,20 +155,32 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 
 	RegisterClass(&windowCls);
 
-	HWND window = CreateWindow(windowCls.lpszClassName, "my-gui", WS_OVERLAPPEDWINDOW | WS_VISIBLE, 50, 50, 1280, 720, 0, 0, inst, 0);
+	HWND window = CreateWindow(windowCls.lpszClassName, "Tile Mapper", WS_OVERLAPPEDWINDOW | WS_VISIBLE, 50, 50, 1280, 720, 0, 0, inst, 0);
 
 	Timer timer;
 
-	BitmapData sprite = LoadBMPFile("topDown/shortMap.bmp");
+	char* commandLine = cmdLine;
+	char* arg1Str = commandLine + strspn(commandLine, "\n ");
+	int arg1Length = strcspn(arg1Str, "\n ");
+
+	char backgroundAssetFileName[256] = {};
+	int backgroundAssetFileNameLength = snprintf(backgroundAssetFileName, 256, "%.*s/background.txt", arg1Length, arg1Str);
 	
-	BitmapData bg1 = LoadBMPFile("topDown/bg1.bmp");
-	BitmapData bg2 = LoadBMPFile("topDown/bg2.bmp");
-	BitmapData bg3 = LoadBMPFile("topDown/bg3.bmp");
+	BackgroundAsset bgAsset = ParseBGAssetFile(backgroundAssetFileName);
 	
-	BitmapData bgSprites[] = {bg1, bg2, bg3};
-	
-	backMap = LoadBMPFile("topDown/shortMap.bmp");
-	
+	char bgMapFileName[256] = {};
+	snprintf(bgMapFileName, 256, "%.*s/%s", arg1Length, arg1Str, bgAsset.backMapFile);
+
+	backMap = LoadBMPFile(bgMapFileName);
+
+	bgSpriteCount = bgAsset.spriteCount;
+	bgSprites = (BitmapData*)malloc(sizeof(BitmapData)*bgSpriteCount);
+	for (int i = 0; i < bgAsset.spriteCount; i++) {
+		char bgSpriteName[256] = {};
+		snprintf(bgSpriteName, 256, "%.*s/%s", arg1Length, arg1Str, bgAsset.sprites[i]);
+		bgSprites[i] = LoadBMPFile(bgSpriteName);
+	}
+
 	int* indices = (int*)malloc(4*backMap.width*backMap.height);
 	
 	int paletteCols[64] = {};
@@ -102,7 +208,6 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 		}
 	}
 	
-	free(backMap.data);
 	backMap.data = indices;
 	
 	bool isRunning = true;
@@ -124,14 +229,10 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 		timer.Reset();
 		char timeStr[256] = {};
 		snprintf(timeStr, 255, "Time this frame: %3.3f ms\n", deltaTime*1000);
-		OutputDebugStringA(timeStr);
-		
-		//RenderGradient();
-		
+
 		BitmapData frameBuffer = { bitmapData, bmpInfo.bmiHeader.biWidth, bmpInfo.bmiHeader.biHeight };
 		memset(bitmapData, 0, frameBuffer.width*frameBuffer.height * 4);
 
-		//Render(frameBuffer);
 		float rowCount = (frameBuffer.height - 48) / 16 / zoomLevel;
 		float colCount = frameBuffer.width  / 16 / zoomLevel;
 
@@ -159,8 +260,8 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 			}
 		}
 
-		for (int i = 0; i < ARRAY_COUNT(bgSprites); i++) {
-			DrawBitmap(frameBuffer, i * 32, frameBuffer.height - 32, 32, 32, bgSprites[i]);
+		for (int i = 0; i < bgSpriteCount; i++) {
+			DrawBitmap(frameBuffer, (i+1) * 32, frameBuffer.height - 32, 32, 32, bgSprites[i]);
 		}
 		
 		//DrawBitmap(frameBuffer, 100, 100, 400, 220, sprite);
@@ -182,10 +283,27 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 			xOffset++;
 		}
 		if (keyStates['Q'] > 1) {
-			zoomLevel /= 1.1f;
+			zoomLevel /= 1.01f;
 		}
 		if (keyStates['Z'] > 1) {
-			zoomLevel *= 1.1f;
+			zoomLevel *= 1.01f;
+		}
+
+		if (keyStates['O'] == RELEASE) {
+			BitmapData backMapCopy = {};
+			backMapCopy.width = backMap.width;
+			backMapCopy.height = backMap.height;
+			backMapCopy.data = malloc(backMapCopy.width*backMapCopy.height * 4);
+
+			for (int i = 0; i < backMapCopy.width * backMapCopy.height; i++) {
+				((int*)backMapCopy.data)[i] = paletteCols[indices[i]];
+			}
+
+			char bgMapFile[256] = {};
+			snprintf(bgMapFile, 256, "%.*s/%s", arg1Length, arg1Str, bgAsset.backMapFile);
+			WriteBMPFile(bgMapFile, &backMapCopy);
+
+			free(backMapCopy.data);
 		}
 
 		zoomLevel = clamp(zoomLevel, 0.25f, 2.0f);
@@ -250,6 +368,23 @@ void WindowsPaintWindow(HWND hwnd) {
 	ReleaseDC(hwnd, deviceContext);
 }
 
+void MouseDown(int mouseX, int mouseY) {
+	int tileSize = (int)(16 * zoomLevel);
+	int frameWidth = bmpInfo.bmiHeader.biWidth;
+	int frameHeight = bmpInfo.bmiHeader.biHeight;
+
+	int backMapX = (mouseX + xOffset) / tileSize;
+	int backMapY = (mouseY + yOffset) / tileSize;
+
+	if (RangeCheck(-1, backMapX, backMap.width) && RangeCheck(-1, backMapY, backMap.height) && RangeCheck(0, mouseY, frameHeight - 32)){
+		int backMapIdx = backMap.width * backMapY + backMapX;
+		((int*)backMap.data)[backMapIdx] = currentPaintIndex;
+	}
+	else if (RangeCheck(frameHeight-33, mouseY, frameHeight)) {
+		currentPaintIndex = clamp(mouseX / 32, 0, bgSpriteCount+1);
+	}
+}
+
 LRESULT CALLBACK MyGuiWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
 	LRESULT result = 0;
 	
@@ -266,6 +401,23 @@ LRESULT CALLBACK MyGuiWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 
 		case WM_CLOSE: {
 			result = DefWindowProc(hwnd, message, wParam, lParam);
+		}break;
+
+		case WM_MOUSEMOVE:
+		{
+			int mouseX = GET_X_LPARAM(lParam);
+			int mouseY = GET_Y_LPARAM(lParam);
+
+			if (wParam & MK_LBUTTON) {
+				MouseDown(mouseX, mouseY);
+			}
+		}break;
+
+		case WM_LBUTTONDOWN:
+		{
+			int mouseX = GET_X_LPARAM(lParam);
+			int mouseY = GET_Y_LPARAM(lParam);
+			MouseDown(mouseX, mouseY);
 		}break;
 
 		case WM_SYSKEYDOWN:

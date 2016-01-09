@@ -23,4 +23,6 @@ void Render(BitmapData frameBuffer);
 
 BitmapData LoadBMPFile(char* fileName);
 
+void WriteBMPFile(char* fileName, BitmapData* data);
+
 #endif
