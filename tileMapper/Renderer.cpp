@@ -174,8 +174,8 @@ void WriteBMPFile(char * fileName, BitmapData * bmp){
 
 	for (int i = 0; i < bmp->width * bmp->height; i++) {
 		dataBuffer[3 * i]     = (bmpDataCast[i] & 0xFF);
-		dataBuffer[3 * i + 1] = (bmpDataCast[i] & 0xFF00 >> 8);
-		dataBuffer[3 * i + 2] = (bmpDataCast[i] & 0xFF0000 >> 16);
+		dataBuffer[3 * i + 1] = (bmpDataCast[i] & 0xFF00) >> 8;
+		dataBuffer[3 * i + 2] = (bmpDataCast[i] & 0xFF0000) >> 16;
 	}
 
 	fwrite(dataBuffer, 1, imageDataSize, bmpFile);

@@ -188,12 +188,14 @@ int main(void) {
 	
 	//uint16 bg1_tileCols[] = {0x3421, 0x2333, 0x1220, 0x1001, 0x2333, 0x2302, 0x4424, 0x4112, 0x2314, 0x2222};
 	
+	volatile uint16* bg0_tile_mem0 = (uint16 *)tile_memory[0][0];
+	for (int i = 0; i < (sizeof(tile4bpp) / 2) * 4; ++i) {bg0_tile_mem0[i] = 0;}
+	
 	for(int i = 0; i < backMap.bgCount; i++){
-		volatile uint16* bg0_tile_mem = (uint16 *)tile_memory[0][i];
+		volatile uint16* bg0_tile_mem = (uint16 *)tile_memory[0][i+1];
 	
 		set_sprite_memory(backMap.bgSprites[i], bg0_tile_mem);
 	}
-	
 	
 	volatile uint16* screenmap0Start = &scr_blk_mem[24][0];
 	

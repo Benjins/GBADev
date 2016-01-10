@@ -7,6 +7,8 @@
 #include "Renderer.h"
 #include "Timer.h"
 
+#define TILE_INDEX_MULTIPLIER 24
+
 LRESULT CALLBACK MyGuiWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 HBITMAP bitmap = 0;
@@ -175,41 +177,17 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 
 	bgSpriteCount = bgAsset.spriteCount;
 	bgSprites = (BitmapData*)malloc(sizeof(BitmapData)*bgSpriteCount);
-	for (int i = 0; i < bgAsset.spriteCount; i++) {
+	for (int i = 0, spriteIndex = 0; i < bgAsset.spriteCount; i++, spriteIndex++) {
 		char bgSpriteName[256] = {};
 		snprintf(bgSpriteName, 256, "%.*s/%s", arg1Length, arg1Str, bgAsset.sprites[i]);
-		bgSprites[i] = LoadBMPFile(bgSpriteName);
-	}
+		bgSprites[spriteIndex] = LoadBMPFile(bgSpriteName);
 
-	int* indices = (int*)malloc(4*backMap.width*backMap.height);
-	
-	int paletteCols[64] = {};
-	int palCount = 1;
-	for(int j = 0; j < backMap.height; j++){
-		for(int i = 0; i < backMap.width; i++){
-			int pixelIdx = j*backMap.width+i;
-			
-			int palIdx = -1;
-			for(int k = 0; k < palCount; k++){
-				if(((int*)backMap.data)[pixelIdx] == paletteCols[k]){
-					palIdx = k;
-					break;
-				}
-			}
-			
-			if(palIdx < 0){
-				paletteCols[palCount] = ((int*)backMap.data)[pixelIdx];
-				palIdx = palCount;
-				palCount++;
-			}
-			
-			int indicesIdx = (backMap.height - 1 - j)*backMap.width+i; 
-			indices[indicesIdx] = palIdx;
+		if (bgSprites[i].data == NULL) {
+			spriteIndex--;
+			bgSpriteCount--;
 		}
 	}
-	
-	backMap.data = indices;
-	
+
 	bool isRunning = true;
 	while (isRunning) {
 		tagMSG msg;
@@ -251,7 +229,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 
 				if (tileX >= 0 && tileX < backMap.width && tileY >= 0 && tileY < backMap.height) {
 					int pixelIdx = tileY*backMap.width + tileX;
-					int spriteIdx = ((int*)backMap.data)[pixelIdx];
+					int spriteIdx = ((int*)backMap.data)[pixelIdx] / TILE_INDEX_MULTIPLIER;
 					if (spriteIdx > 0) {
 						BitmapData sprite = bgSprites[spriteIdx - 1];
 						DrawBitmap(frameBuffer, i * tileSize + pixelOffsetX, j * tileSize + pixelOffsetY, tileSize, tileSize, sprite);
@@ -289,7 +267,13 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 			zoomLevel *= 1.01f;
 		}
 
-		if (keyStates['O'] == RELEASE) {
+		if (keyStates['F'] == PRESS) {
+			for (int i = 0; i < backMap.width*backMap.height; i++) {
+				((int*)backMap.data)[i] = currentPaintIndex * TILE_INDEX_MULTIPLIER;
+			}
+		}
+
+		if (keyStates['O'] == PRESS) {
 			BitmapData backMapCopy = {};
 			backMapCopy.width = backMap.width;
 			backMapCopy.height = backMap.height;
@@ -299,7 +283,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 				int x = (i % backMapCopy.width);
 				int y = (i / backMapCopy.width);
 				int cpyIdx = x + (backMapCopy.height - 1 - y)*backMapCopy.width;
-				((int*)backMapCopy.data)[cpyIdx] = paletteCols[indices[i]];
+				((int*)backMapCopy.data)[cpyIdx] = ((int*)backMap.data)[i];// TILE_INDEX_MULTIPLIER;
 			}
 
 			char bgMapFile[256] = {};
@@ -381,7 +365,7 @@ void MouseDown(int mouseX, int mouseY) {
 
 	if (RangeCheck(-1, backMapX, backMap.width) && RangeCheck(-1, backMapY, backMap.height) && RangeCheck(0, mouseY, frameHeight - 32)){
 		int backMapIdx = backMap.width * backMapY + backMapX;
-		((int*)backMap.data)[backMapIdx] = currentPaintIndex;
+		((int*)backMap.data)[backMapIdx] = currentPaintIndex * TILE_INDEX_MULTIPLIER;
 	}
 	else if (RangeCheck(frameHeight-33, mouseY, frameHeight)) {
 		currentPaintIndex = clamp(mouseX / 32, 0, bgSpriteCount+1);

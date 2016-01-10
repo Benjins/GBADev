@@ -1,2 +1,1 @@
-backMap:shortMap-Copy.bmp:bg1.bmp,bg2.bmp,bg3.bmp 
- 
+backMap:shortMap-Copy.bmp:bg1.bmp,bg2.bmp,bg3.bmp,a.bmp,b.bmp,c.bmp,d.bmp,grass.bmp,grass_flower.bmp,road.bmp,road_2.bmp,road_3.bmp,road_4.bmp

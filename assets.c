@@ -12,6 +12,8 @@ typedef int bool;
 #define true 1
 #define false 0
 
+#define TILE_INDEX_MULTIPLIER 24
+
 typedef struct __attribute((packed))__{
 	short fileTag;
 	int fileSize;
@@ -231,8 +233,7 @@ int main(int argc, char** argv){
 			int bgVarNameLength = sprintf(bgVarNameStr, "%.*s_map", varName.length, varName.start);
 			Token bgVarName = {bgVarNameStr, bgVarNameLength};
 			
-			Palette bgPlt = {};
-			WriteAsset(argv[1], bgVarName, fileName, assetsHeaderFile, &bgPlt, false);
+			WriteBackground(argv[1], bgVarName, fileName, assetsHeaderFile);
 			
 			fprintf(assetsHeaderFile, "Sprite %.*s_bgs[] = {\n", varName.length, varName.start);
 			
@@ -267,6 +268,65 @@ typedef struct {
 	unsigned char Alpha;
 } RGBAPixel;
 
+void WriteBackground(char* folderName, Token varName, Token fileName, FILE* assetHeader){
+	int folderNameLength = strlen(folderName);
+	char* fileNameCpy = (char*)malloc(folderNameLength + 1 + fileName.length+1);
+	memcpy(fileNameCpy, folderName, folderNameLength);
+	fileNameCpy[folderNameLength] = '/';
+	memcpy(fileNameCpy+folderNameLength+1, fileName.start, fileName.length);
+	fileNameCpy[folderNameLength + 1 + fileName.length] = '\0';
+	
+	FILE* bmpFile = fopen(fileNameCpy, "rb");
+	if(bmpFile == NULL){
+		printf("Error, could not open bmp file '%s'.\n", fileNameCpy);
+		return;
+	}
+	
+	BitMapHeader header;	
+	fread(&header, sizeof(header), 1, bmpFile);
+
+	int imageDataSize = header.imageDataSize;
+	if(imageDataSize == 0){
+		imageDataSize = header.imageHeight * header.imageWidth * header.bitDepth / 8;
+	}
+
+	fseek(bmpFile, header.imageDataOffset - sizeof(header), SEEK_CUR);
+	
+	unsigned char* imgBuffer = (unsigned char*)malloc(imageDataSize);
+	fread(imgBuffer, 1, imageDataSize, bmpFile);
+	fclose(bmpFile);
+
+	int width = header.imageWidth;
+	int height = header.imageHeight;
+	
+	printf("width: %d, height: %d\n", width, height);
+
+	int* pixelData = (int*)malloc(width*height*sizeof(int));
+	
+	for(int i = 0; i < width*height; i++){
+		pixelData[i]  = imgBuffer[i*3];
+		pixelData[i] |= imgBuffer[i*3+1] << 8;
+		pixelData[i] |= imgBuffer[i*3+2] << 16;
+	}
+	
+	free(imgBuffer);
+	
+	fprintf(assetHeader, "static unsigned short %.*s_data[] = {\n", varName.length, varName.start);
+	for(int i = 0; i < width*height; i++){
+		fprintf(assetHeader, "%d,", pixelData[i] / TILE_INDEX_MULTIPLIER);
+	}
+	fprintf(assetHeader, "};\n");
+	
+	int type = 0;
+	if(width == 32 && height == 8){
+		type = 0x4000;
+	}
+	
+	fprintf(assetHeader, "static Sprite %.*s = {%d, %d, %d, %.*s_data\n};\n", varName.length, varName.start, type, width, height, varName.length, varName.start);
+	
+	free(pixelData);
+}
+
 void WriteAsset(char* folderName, Token varName, Token fileName, FILE* assetHeader, Palette* palette, bool tileMemory){
 	printf("Found asset named '%.*s' at file '%.*s'.\n", varName.length, varName.start, fileName.length, fileName.start);
 	
@@ -289,8 +349,8 @@ void WriteAsset(char* folderName, Token varName, Token fileName, FILE* assetHead
 	int imageDataSize = header.imageDataSize;
 	if(imageDataSize == 0){
 		imageDataSize = header.imageHeight * header.imageWidth * header.bitDepth / 8;
-	}
 
+	}
 	fseek(bmpFile, header.imageDataOffset - sizeof(header), SEEK_CUR);
 
 	unsigned char* imgBuffer = (unsigned char*)malloc(imageDataSize);
