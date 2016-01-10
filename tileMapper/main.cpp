@@ -296,7 +296,10 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 			backMapCopy.data = malloc(backMapCopy.width*backMapCopy.height * 4);
 
 			for (int i = 0; i < backMapCopy.width * backMapCopy.height; i++) {
-				((int*)backMapCopy.data)[i] = paletteCols[indices[i]];
+				int x = (i % backMapCopy.width);
+				int y = (i / backMapCopy.width);
+				int cpyIdx = x + (backMapCopy.height - 1 - y)*backMapCopy.width;
+				((int*)backMapCopy.data)[cpyIdx] = paletteCols[indices[i]];
 			}
 
 			char bgMapFile[256] = {};
