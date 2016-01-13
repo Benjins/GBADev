@@ -312,8 +312,11 @@ void WriteBackground(char* folderName, Token varName, Token fileName, FILE* asse
 	free(imgBuffer);
 	
 	fprintf(assetHeader, "static unsigned short %.*s_data[] = {\n", varName.length, varName.start);
-	for(int i = 0; i < width*height; i++){
-		fprintf(assetHeader, "%d,", pixelData[i] / TILE_INDEX_MULTIPLIER);
+	for(int j = 0; j < height; j++){
+		for(int i = 0; i < width; i++){
+			int idx = (height - 1 - j) * width + i;
+			fprintf(assetHeader, "%d,", pixelData[idx] / TILE_INDEX_MULTIPLIER);
+		}
 	}
 	fprintf(assetHeader, "};\n");
 	
