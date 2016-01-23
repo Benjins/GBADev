@@ -12,6 +12,8 @@ typedef char int8;
 typedef short int16;
 typedef int int32;
 
+#include "random.h"
+
 typedef uint16 rgb15;
 typedef struct object_attributes {
 	uint16 attribute_zero;
@@ -90,13 +92,15 @@ void AddObject(int x, int y, const char* whatSay){
 	objectCount++;
 }
 
-#define MAX_LETTER_COUNT 40
-#define MAX_TEXT_BOX_COUNT 32
+#define MAX_LETTER_COUNT 30
+#define MAX_TEXT_BOX_COUNT 30
+#define MAX_MONSTER_COUNT 20
 
 volatile object_attributes* uiTextAttribs = &oam_memory[0];
 volatile object_attributes* textBoxAttribs = &oam_memory[MAX_LETTER_COUNT];
 volatile object_attributes* playerAttribs = &oam_memory[MAX_LETTER_COUNT+MAX_TEXT_BOX_COUNT];
 volatile object_attributes* objectAttribs = &oam_memory[MAX_LETTER_COUNT+MAX_TEXT_BOX_COUNT+1];
+volatile object_attributes* monsterAttribs = &oam_memory[MAX_LETTER_COUNT+MAX_TEXT_BOX_COUNT+MAX_OBJECT_COUNT+1];
 
 // Form a 16-bit BGR GBA colour from three component values
 static inline rgb15 RGB15(int r, int g, int b) { return r | (g << 5) | (b << 10); }
@@ -115,6 +119,8 @@ static inline void set_object_horizontal_flip(volatile object_attributes *object
 static inline int clamp(int value, int min, int max) { return (value < min ? min : (value > max ? max : value)); }
 
 static inline int abs(int value) { return (value >= 0 ? value : -value); }
+
+static inline int signum(int value) { return (value > 0 ? 1 : (value < 0 ? -1 : 0) ); }
 
 static inline float clampf(float value, float min, float max) { return (value < min ? min : (value > max ? max : value)); }
 
@@ -213,6 +219,8 @@ typedef enum {
 	DIR_COUNT
 } Direction;
 
+static int directionVectors[DIR_COUNT][2] = {{0, 1}, {0, -1}, {-1, 0}, {1, 0}};
+
 typedef enum {
 	FREEWALK,
 	CONVERSATION
@@ -220,11 +228,25 @@ typedef enum {
 
 GameMode currMode = FREEWALK;
 
+#include "monster.h"
+
+#define MAX_MONSTER_COUNT 20
+
+Monster monsters[MAX_MONSTER_COUNT];
+int monsterCount = 0;
+
+void AddMonster(int x, int y){
+	monsters[monsterCount].position[0] = x;
+	monsters[monsterCount].position[1] = y;
+	monsters[monsterCount].timer = 0;
+	monsters[monsterCount].currState = PATROL_UP;
+	
+	monsterCount++;
+}
+
 int main(void) {
 	irqInit();
 	irqEnable(IRQ_VBLANK);
-	
-	int directionVectors[DIR_COUNT][2] = {{0, 1}, {0, -1}, {-1, 0}, {1, 0}};
 	
 	for(int i = 0; i < ARRAY_LENGTH(paletteColors); i++){
 		bg0_palette_memory[i] = paletteColors[i];
@@ -254,6 +276,9 @@ int main(void) {
 		set_sprite_memory(textBoxSprite, text_box_tile_memory);
 	}
 	
+	volatile uint16* monster_tile_memory = (uint16 *)tile_memory[4][13];
+	set_sprite_memory(monsterSprite, monster_tile_memory);
+	
 	for(int i = 0; i < ARRAY_LENGTH(font); i++){
 		volatile uint16* uiFontMemory = (uint16 *)tile_memory[4][14+i];
 		set_sprite_memory(font[i], uiFontMemory);
@@ -280,12 +305,25 @@ int main(void) {
 		set_object_position(objectAttrib, -10, -10);
 	}
 	
+	for(int i = 0; i < MAX_MONSTER_COUNT; i++){
+		volatile object_attributes* monsterAttrib = &monsterAttribs[i];
+		monsterAttrib->attribute_zero = 0; 
+		monsterAttrib->attribute_one = 0; 
+		monsterAttrib->attribute_two = 13;
+		set_object_position(monsterAttrib, -10, -10);
+	}
+	
 	AddObject(-50, 50, "I am you");
 	AddObject(-20, 150, "The only way");
 	AddObject(210, -20, "We are one");
 	AddObject(120, 70, "lololol");
 	AddObject(180, 90, "god is dead");
 	AddObject(70, 120, "who is john galt");
+	
+	AddMonster(-20, 90);
+	AddMonster(50, 190);
+	AddMonster(120, 50);
+	AddMonster(20, 50);
 	
 	for(int i = 0; i < MAX_TEXT_BOX_COUNT; i++){
 		volatile object_attributes* textBoxAttrib = &textBoxAttribs[i];
@@ -389,6 +427,23 @@ int main(void) {
 					}
 				}
 			}
+			
+			UpdateMonsters(monsters, monsterCount, playerX, playerY);
+			
+			for(int i = 0; i < monsterCount; i++){
+				volatile object_attributes* monsterAttrib = &monsterAttribs[i];
+				
+				int screenX = monsters[i].position[0] - playerX + centerX;
+				int screenY = monsters[i].position[1] - playerY + centerY;
+				
+				if(screenX < -10 || screenX > SCREEN_WIDTH  + 10
+				|| screenY < -10 || screenY > SCREEN_HEIGHT + 10){
+					set_object_position(monsterAttrib, -10, -10);
+				}
+				else{
+					set_object_position(monsterAttrib, screenX, screenY);
+				}
+			}
 				
 			for(int i = 0; i < objectCount; i++){
 				volatile object_attributes* objectAttrib = &objectAttribs[i];
@@ -414,9 +469,11 @@ int main(void) {
 					int diffSqr = diffX*diffX + diffY*diffY;
 					
 					if(diffSqr < 128){
-						PushText(objects[i].whatSay, 5, SCREEN_HEIGHT - 20);
-						ShowTextBox();
-						currMode = CONVERSATION;
+						//PushText(objects[i].whatSay, 5, SCREEN_HEIGHT - 20);
+						//ShowTextBox();
+						//currMode = CONVERSATION;
+						
+						objects[i].position[0] += GetRandom() % 32;
 					}
 				}
 			}
