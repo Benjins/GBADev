@@ -74,6 +74,7 @@ typedef uint16 SCREENBLOCK[1024];
 
 typedef struct {
 	int16 position[2];
+	const char* whatSay;
 } __attribute__((aligned(4))) object;
 
 #define MAX_OBJECT_COUNT 10
@@ -81,15 +82,21 @@ object objects[MAX_OBJECT_COUNT];
 
 int objectCount = 0;
 
-void AddObject(int x, int y){
+void AddObject(int x, int y, const char* whatSay){
 	objects[objectCount].position[0] = x;
 	objects[objectCount].position[1] = y;
+	objects[objectCount].whatSay = whatSay;
 	
 	objectCount++;
 }
 
-volatile object_attributes* playerAttribs = &oam_memory[0];
-volatile object_attributes* objectAttribs = &oam_memory[1];
+#define MAX_LETTER_COUNT 40
+#define MAX_TEXT_BOX_COUNT 32
+
+volatile object_attributes* uiTextAttribs = &oam_memory[0];
+volatile object_attributes* textBoxAttribs = &oam_memory[MAX_LETTER_COUNT];
+volatile object_attributes* playerAttribs = &oam_memory[MAX_LETTER_COUNT+MAX_TEXT_BOX_COUNT];
+volatile object_attributes* objectAttribs = &oam_memory[MAX_LETTER_COUNT+MAX_TEXT_BOX_COUNT+1];
 
 // Form a 16-bit BGR GBA colour from three component values
 static inline rgb15 RGB15(int r, int g, int b) { return r | (g << 5) | (b << 10); }
@@ -111,6 +118,75 @@ static inline int abs(int value) { return (value >= 0 ? value : -value); }
 
 static inline float clampf(float value, float min, float max) { return (value < min ? min : (value > max ? max : value)); }
 
+#define MAX_TEXT_STRING_COUNT 16
+
+int letterCount = 0;
+int textIndexCount = 0;
+int textIndices[MAX_TEXT_STRING_COUNT] = {};
+
+void ClearText(){
+	for(int i = 0; i < MAX_LETTER_COUNT; i++){
+		uiTextAttribs[i].attribute_two = 0;
+	}
+}
+
+void PopText(){
+	if(textIndexCount > 0){
+		textIndexCount--;
+		letterCount = textIndices[textIndexCount];
+		
+		for(int i = letterCount; i < MAX_LETTER_COUNT; i++){
+			uiTextAttribs[i].attribute_two = 0;
+		}
+	}
+}
+
+void ShowTextBox(){
+	int xPos = 0;
+	int yPos = SCREEN_HEIGHT - 24;
+	for(int i = 0; i < MAX_TEXT_BOX_COUNT; i++){
+		set_object_position(&textBoxAttribs[i], xPos, yPos);
+		xPos += 16;
+		if(xPos > SCREEN_WIDTH){
+			xPos = 0;
+			yPos += 16;
+		}
+	}
+}
+
+void HideTextBox(){
+	for(int i = 0; i < MAX_TEXT_BOX_COUNT; i++){
+		set_object_position(&textBoxAttribs[i], -18, -18);
+	}
+}
+
+void PushText(const char* text, int x, int y){
+	static const int caseMask = 'a' ^ 'A';
+	
+	textIndices[textIndexCount] = letterCount;
+	textIndexCount++;
+	
+	int index = letterCount;
+	int position=0;
+	for(const char* cursor = text; *cursor != '\0'; cursor++){
+		if(*cursor == ' '){
+			position++;
+			continue;
+		}
+		
+		char baseLetter = *cursor | caseMask;
+		if(baseLetter >= 'a' && baseLetter <= 'z'){
+			int spriteIdx = 14 + baseLetter - 'a';
+			uiTextAttribs[index].attribute_two = spriteIdx;
+			set_object_position(&uiTextAttribs[index], 8*position+x, y);
+			index++;
+			position++;
+		}
+	}
+	
+	letterCount = index;
+}
+
 #include "assets.h"
 
 static inline void set_sprite_memory(Sprite sprite, volatile uint16* memory){
@@ -125,9 +201,30 @@ static inline void set_sprite_memory(Sprite sprite, volatile uint16* memory){
 	}
 }
 
+int DotProduct(int* v1, int* v2){
+	return v1[0]*v2[0] + v1[1]*v2[1];
+}
+
+typedef enum {
+	UP = 0,
+	DOWN,
+	LEFT,
+	RIGHT,
+	DIR_COUNT
+} Direction;
+
+typedef enum {
+	FREEWALK,
+	CONVERSATION
+} GameMode;
+
+GameMode currMode = FREEWALK;
+
 int main(void) {
 	irqInit();
 	irqEnable(IRQ_VBLANK);
+	
+	int directionVectors[DIR_COUNT][2] = {{0, 1}, {0, -1}, {-1, 0}, {1, 0}};
 	
 	for(int i = 0; i < ARRAY_LENGTH(paletteColors); i++){
 		bg0_palette_memory[i] = paletteColors[i];
@@ -135,18 +232,27 @@ int main(void) {
 		object_palette_memory[i] = paletteColors[i];
 	}
 	
+	Sprite playerDirections[DIR_COUNT] = {playerSpriteUp, playerSpriteDown, playerSpriteLeft, playerSpriteRight};
+	
 	volatile uint16* empty_tile_memory = (uint16 *)tile_memory[4][0];
 	for (int i = 0; i < (sizeof(tile4bpp) / 2) * 4; ++i) { empty_tile_memory[i] = 0x0000; }
 	
-	volatile uint16* player_tile_memory = (uint16 *)tile_memory[4][1];
-	set_sprite_memory(playerSprite, player_tile_memory);
+	for(int i = 0; i < DIR_COUNT; i++){
+		volatile uint16* player_tile_memory = (uint16 *)tile_memory[4][i+1];
+		set_sprite_memory(playerDirections[i], player_tile_memory);
+	}
 	
-	volatile uint16* object_tile_memory = (uint16 *)tile_memory[4][2];
+	volatile uint16* object_tile_memory = (uint16 *)tile_memory[4][1+DIR_COUNT];
 	for (int i = 0; i < (sizeof(tile4bpp) / 2) * 4; ++i) { object_tile_memory[i] = 0x2232; }
 	
 	Sprite font[] = {aFont, bFont, cFont, dFont, eFont, fFont, gFont, hFont, iFont,
 					jFont, kFont, lFont, mFont, nFont, oFont, pFont, qFont, rFont, sFont,
 					tFont, uFont, vFont, wFont, xFont, yFont, zFont};
+	
+	for(int i = 0; i < 4; i++){
+		volatile uint16* text_box_tile_memory = (uint16 *)tile_memory[4][i+2+DIR_COUNT];
+		set_sprite_memory(textBoxSprite, text_box_tile_memory);
+	}
 	
 	for(int i = 0; i < ARRAY_LENGTH(font); i++){
 		volatile uint16* uiFontMemory = (uint16 *)tile_memory[4][14+i];
@@ -154,6 +260,7 @@ int main(void) {
 	}
 	
 	int playerX = 0, playerY = 0;
+	Direction playerDir = DOWN;
 	
 	const int player_height = 8, player_width = 8;
 	
@@ -162,23 +269,30 @@ int main(void) {
 	
 	playerAttribs->attribute_zero = 0; 
 	playerAttribs->attribute_one = 0; 
-	playerAttribs->attribute_two = 1;
+	playerAttribs->attribute_two = 1+playerDir;
 	set_object_position(playerAttribs, centerX, centerY);
 	
 	for(int i = 0; i < MAX_OBJECT_COUNT; i++){
 		volatile object_attributes* objectAttrib = &objectAttribs[i];
 		objectAttrib->attribute_zero = 0; 
 		objectAttrib->attribute_one = 0; 
-		objectAttrib->attribute_two = 2;
+		objectAttrib->attribute_two = 5;
 		set_object_position(objectAttrib, -10, -10);
 	}
 	
-	AddObject(-50, 50);
-	AddObject(-20, 150);
-	AddObject(210, -20);
-	AddObject(120, 70);
-	AddObject(180, 90);
-	AddObject(70, 120);
+	AddObject(-50, 50, "I am you");
+	AddObject(-20, 150, "The only way");
+	AddObject(210, -20, "We are one");
+	AddObject(120, 70, "lololol");
+	AddObject(180, 90, "god is dead");
+	AddObject(70, 120, "who is john galt");
+	
+	for(int i = 0; i < MAX_TEXT_BOX_COUNT; i++){
+		volatile object_attributes* textBoxAttrib = &textBoxAttribs[i];
+		textBoxAttrib->attribute_zero = 0x0000;
+		textBoxAttrib->attribute_one = 0x4000; 
+		textBoxAttrib->attribute_two = 2+DIR_COUNT;
+	}
 		
 	// Set the display parameters to enable objects, and use a 1D object->tile mapping, and enable BG0
 	REG_DISPLAY = 0x1000 | 0x0040 | 0x0100 ;// | 0x0200;
@@ -205,75 +319,117 @@ int main(void) {
 	int bgTileOffsetX = -1;
 	int bgTileOffsetY = -1;
 	
+	HideTextBox();
+	
 	while (1) {
 		VBlankIntrWait();
 		
 		uint32 key_states = ~REG_KEY_INPUT & KEY_ANY;
 		
-		int player_max_clamp_y = SCREEN_HEIGHT - player_height;
-		int player_max_clamp_x = SCREEN_WIDTH - player_width;
-		
-		if (key_states & KEY_LEFT) { playerX--;}
-		if (key_states & KEY_RIGHT) { playerX++;}
-		if (key_states & KEY_UP) { playerY--;}
-		if (key_states & KEY_DOWN) { playerY++;}
-		
-		int bgOffsetX = playerX%8;
-		int bgOffsetY = playerY%8;
-		
-		int newBGTileOffsetX = playerX/8;
-		int newBGTileOffsetY = playerY/8;
-		
-		if(bgOffsetX < 0){
-			bgOffsetX += 8;
-			newBGTileOffsetX--;
-		}
-		
-		if(bgOffsetY < 0){
-			bgOffsetY += 8;
-			newBGTileOffsetY--;
-		}
-		
-		REG_BG0_OFS[0] = bgOffsetX;
-		REG_BG0_OFS[1] = bgOffsetY;
-		
-		if((newBGTileOffsetX != bgTileOffsetX) || (newBGTileOffsetY != bgTileOffsetY)){		
-			bgTileOffsetX = newBGTileOffsetX;
-			bgTileOffsetY = newBGTileOffsetY;
+		if(currMode == FREEWALK){		
+			int player_max_clamp_y = SCREEN_HEIGHT - player_height;
+			int player_max_clamp_x = SCREEN_WIDTH - player_width;
 			
-			for(int j = 0; j < 32; j++){
-				for(int i = 0; i < 32; i++){
-					int backMapX = (i+bgTileOffsetX)%backMap.map.width;
-					int backMapY = (j+bgTileOffsetY)%backMap.map.height;
-					if(backMapX < 0){
-						backMapX += backMap.map.width;
+			if (key_states & KEY_LEFT) {
+				playerX--;
+				playerDir = LEFT;
+			}
+			if (key_states & KEY_RIGHT) {
+				playerX++;
+				playerDir = RIGHT;
+			}
+			if (key_states & KEY_UP) {
+				playerY--;
+				playerDir = UP;
+			}
+			if (key_states & KEY_DOWN) {
+				playerY++;
+				playerDir = DOWN;
+			}
+			
+			playerAttribs->attribute_two = 1+playerDir;
+			
+			int bgOffsetX = playerX%8;
+			int bgOffsetY = playerY%8;
+			
+			int newBGTileOffsetX = playerX/8;
+			int newBGTileOffsetY = playerY/8;
+			
+			if(bgOffsetX < 0){
+				bgOffsetX += 8;
+				newBGTileOffsetX--;
+			}
+			
+			if(bgOffsetY < 0){
+				bgOffsetY += 8;
+				newBGTileOffsetY--;
+			}
+			
+			REG_BG0_OFS[0] = bgOffsetX;
+			REG_BG0_OFS[1] = bgOffsetY;
+			
+			if((newBGTileOffsetX != bgTileOffsetX) || (newBGTileOffsetY != bgTileOffsetY)){		
+				bgTileOffsetX = newBGTileOffsetX;
+				bgTileOffsetY = newBGTileOffsetY;
+				
+				for(int j = 0; j < 32; j++){
+					for(int i = 0; i < 32; i++){
+						int backMapX = (i+bgTileOffsetX)%backMap.map.width;
+						int backMapY = (j+bgTileOffsetY)%backMap.map.height;
+						if(backMapX < 0){
+							backMapX += backMap.map.width;
+						}
+						if(backMapY < 0){
+							backMapY += backMap.map.height;
+						}
+						int backMapIdx = backMapY*backMap.map.width+backMapX;
+						
+						int scrMapIdx = j*32+i;
+						screenmap0Start[scrMapIdx] = backMap.map.data[backMapIdx];
 					}
-					if(backMapY < 0){
-						backMapY += backMap.map.height;
-					}
-					int backMapIdx = backMapY*backMap.map.width+backMapX;
+				}
+			}
+				
+			for(int i = 0; i < objectCount; i++){
+				volatile object_attributes* objectAttrib = &objectAttribs[i];
+				int screenX = objects[i].position[0] - playerX + centerX;
+				int screenY = objects[i].position[1] - playerY + centerY;
+				
+				//Prevent wrap-around from the truncation that set_pos uses.
+				//TODO: Use clamp instead?
+				if(screenX < -10 || screenX > SCREEN_WIDTH  + 10
+				|| screenY < -10 || screenY > SCREEN_HEIGHT + 10){
+					set_object_position(objectAttrib, -10, -10);
+				}
+				else{
+					set_object_position(objectAttrib, screenX, screenY);
+				}
+			}
+			
+			if((key_states & BUTTON_A) && !(prevKeys & BUTTON_A)){
+				for(int i = 0; i < objectCount; i++){
+					int diffX = objects[i].position[0] - playerX;
+					int diffY = objects[i].position[1] - playerY;
 					
-					int scrMapIdx = j*32+i;
-					screenmap0Start[scrMapIdx] = backMap.map.data[backMapIdx];
+					int diffSqr = diffX*diffX + diffY*diffY;
+					
+					if(diffSqr < 128){
+						PushText(objects[i].whatSay, 5, SCREEN_HEIGHT - 20);
+						ShowTextBox();
+						currMode = CONVERSATION;
+					}
 				}
 			}
 		}
-			
-		for(int i = 0; i < objectCount; i++){
-			volatile object_attributes* objectAttrib = &objectAttribs[i];
-			int screenX = objects[i].position[0] - playerX + centerX;
-			int screenY = objects[i].position[1] - playerY + centerY;
-			
-			//Prevent wrap-around from the truncation that set_pos uses.
-			//TODO: Use clamp instead?
-			if(screenX < -10 || screenX > SCREEN_WIDTH  + 10
-			|| screenY < -10 || screenY > SCREEN_HEIGHT + 10){
-				set_object_position(objectAttrib, -10, -10);
-			}
-			else{
-				set_object_position(objectAttrib, screenX, screenY);
+		else if(currMode == CONVERSATION){
+			if((key_states & BUTTON_B) && !(prevKeys & BUTTON_B)){
+				PopText();
+				HideTextBox();
+				currMode = FREEWALK;
 			}
 		}
+		
+		
 		
 		prevKeys = key_states;
 		

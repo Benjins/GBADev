@@ -24,4 +24,8 @@ wFont:w.bmp
 xFont:x.bmp
 yFont:y.bmp
 zFont:z.bmp
-playerSprite:player_sprite.bmp
+textBoxSprite:textBox.bmp
+playerSpriteUp:player_sprite_up.bmp
+playerSpriteDown:player_sprite_down.bmp
+playerSpriteLeft:player_sprite_left.bmp
+playerSpriteRight:player_sprite_right.bmp

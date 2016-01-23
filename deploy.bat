@@ -1,8 +1,8 @@
 @echo off
 
-IF EXIST E:/ (
-cp %1.gba E:/
-RemoveDrive E
+IF EXIST F:/ (
+cp %1.gba F:/
+RemoveDrive F
 ) ELSE (
-echo "Could not copy, E:/ not inserted."
+echo "Could not copy, F:/ not inserted."
 )
