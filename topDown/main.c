@@ -93,14 +93,15 @@ void AddObject(int x, int y, const char* whatSay){
 }
 
 #define MAX_LETTER_COUNT 30
-#define MAX_TEXT_BOX_COUNT 30
+#define MAX_TEXT_BOX_COUNT 31
 #define MAX_MONSTER_COUNT 20
 
 volatile object_attributes* uiTextAttribs = &oam_memory[0];
 volatile object_attributes* textBoxAttribs = &oam_memory[MAX_LETTER_COUNT];
-volatile object_attributes* playerAttribs = &oam_memory[MAX_LETTER_COUNT+MAX_TEXT_BOX_COUNT];
-volatile object_attributes* objectAttribs = &oam_memory[MAX_LETTER_COUNT+MAX_TEXT_BOX_COUNT+1];
-volatile object_attributes* monsterAttribs = &oam_memory[MAX_LETTER_COUNT+MAX_TEXT_BOX_COUNT+MAX_OBJECT_COUNT+1];
+volatile object_attributes* playerHealthAttribs = &oam_memory[MAX_LETTER_COUNT+MAX_TEXT_BOX_COUNT];
+volatile object_attributes* playerAttribs = &oam_memory[MAX_LETTER_COUNT+MAX_TEXT_BOX_COUNT+1];
+volatile object_attributes* objectAttribs = &oam_memory[MAX_LETTER_COUNT+MAX_TEXT_BOX_COUNT+2];
+volatile object_attributes* monsterAttribs = &oam_memory[MAX_LETTER_COUNT+MAX_TEXT_BOX_COUNT+MAX_OBJECT_COUNT+2];
 
 // Form a 16-bit BGR GBA colour from three component values
 static inline rgb15 RGB15(int r, int g, int b) { return r | (g << 5) | (b << 10); }
@@ -207,6 +208,16 @@ static inline void set_sprite_memory(Sprite sprite, volatile uint16* memory){
 	}
 }
 
+void SetHealthSprite(volatile uint16* memory, int health){
+	for(int i = 0; i < 16; i++){
+		memory[i] = 0;
+	}
+	
+	for(int i = 0; i < health; i++){
+		memory[i/4] |= (1 << (i % 4)*4);
+	}
+}
+
 int DotProduct(int* v1, int* v2){
 	return v1[0]*v2[0] + v1[1]*v2[1];
 }
@@ -276,6 +287,8 @@ int main(void) {
 		set_sprite_memory(textBoxSprite, text_box_tile_memory);
 	}
 	
+	volatile uint16* player_health_memory = (uint16 *)tile_memory[4][12];
+	
 	volatile uint16* monster_tile_memory = (uint16 *)tile_memory[4][13];
 	set_sprite_memory(monsterSprite, monster_tile_memory);
 	
@@ -286,11 +299,19 @@ int main(void) {
 	
 	int playerX = 0, playerY = 0;
 	Direction playerDir = DOWN;
+	int playerHealth = 16;
 	
 	const int player_height = 8, player_width = 8;
 	
 	const int centerX = SCREEN_WIDTH/2 - player_height/2;
 	const int centerY = SCREEN_HEIGHT/2 - player_width/2;
+	
+	playerHealthAttribs->attribute_zero = 0;
+	playerHealthAttribs->attribute_one = 0;
+	playerHealthAttribs->attribute_two = 12;
+	
+	SetHealthSprite(player_health_memory, playerHealth);
+	set_object_position(playerHealthAttribs, 16, 16);
 	
 	playerAttribs->attribute_zero = 0; 
 	playerAttribs->attribute_one = 0; 
@@ -428,7 +449,9 @@ int main(void) {
 				}
 			}
 			
-			UpdateMonsters(monsters, monsterCount, playerX, playerY);
+			UpdateMonsters(monsters, monsterCount, playerX, playerY, &playerHealth);
+			
+			SetHealthSprite(player_health_memory, playerHealth);
 			
 			for(int i = 0; i < monsterCount; i++){
 				volatile object_attributes* monsterAttrib = &monsterAttribs[i];
@@ -469,11 +492,9 @@ int main(void) {
 					int diffSqr = diffX*diffX + diffY*diffY;
 					
 					if(diffSqr < 128){
-						//PushText(objects[i].whatSay, 5, SCREEN_HEIGHT - 20);
-						//ShowTextBox();
-						//currMode = CONVERSATION;
-						
-						objects[i].position[0] += GetRandom() % 32;
+						PushText(objects[i].whatSay, 5, SCREEN_HEIGHT - 20);
+						ShowTextBox();
+						currMode = CONVERSATION;
 					}
 				}
 			}

@@ -9,6 +9,7 @@ typedef enum{
 	PATROL_LEFT,
 	PATROL_RIGHT,
 	PATROL_LAST = PATROL_RIGHT,
+	PAUSE,
 	SEEK,
 	FIGHT
 } MonsterState;
@@ -16,10 +17,11 @@ typedef enum{
 typedef struct{
 	int position[2];
 	MonsterState currState;
-	int timer;
+	short timer;
+	short timerGoal;
 } Monster;
 
-void UpdateMonsters(Monster* monsters, int monsterCount, int playerX, int playerY){
+void UpdateMonsters(Monster* monsters, int monsterCount, int playerX, int playerY, int* playerHealth){
 	int playerPos[2] = {playerX, playerY};
 	
 	for(int i = 0; i < monsterCount; i++){
@@ -32,9 +34,23 @@ void UpdateMonsters(Monster* monsters, int monsterCount, int playerX, int player
 			}
 			
 			monsters[i].timer++;
-			if(monsters[i].timer >= 40){
+			if(monsters[i].timer >= monsters[i].timerGoal){
 				monsters[i].timer = 0;
-				monsters[i].currState = (MonsterState)(PATROL_FIRST + (GetRandom() % PATROL_LAST - PATROL_FIRST));
+				monsters[i].timerGoal = (GetRandom() % 20) + 30;
+				monsters[i].currState = PAUSE;
+			}
+			
+			if(playerDistSqr <= chaseBeginDistSqr){
+				monsters[i].currState = SEEK;
+			}
+		}
+		else if(monsters[i].currState == PAUSE){
+			monsters[i].timer++;
+			
+			if(monsters[i].timer >= monsters[i].timerGoal){
+				monsters[i].timer = 0;
+				monsters[i].timerGoal = (GetRandom() % 20) + 30;
+				monsters[i].currState = (MonsterState)(PATROL_FIRST + (GetRandom() % (PATROL_LAST - PATROL_FIRST)));
 			}
 			
 			if(playerDistSqr <= chaseBeginDistSqr){
@@ -44,6 +60,7 @@ void UpdateMonsters(Monster* monsters, int monsterCount, int playerX, int player
 		else if(monsters[i].currState == SEEK){
 			if(playerDistSqr <= fightDistSqr){
 				monsters[i].currState = FIGHT;
+				monsters[i].timer = 60;
 			}
 			else if(playerDistSqr >= chaseEndDistSqr){
 				monsters[i].timer = 0;
@@ -59,6 +76,13 @@ void UpdateMonsters(Monster* monsters, int monsterCount, int playerX, int player
 		else if(monsters[i].currState == FIGHT){
 			if(playerDistSqr > fightDistSqr){
 				monsters[i].currState = SEEK;
+			}
+			
+			monsters[i].timer++;
+			
+			if(monsters[i].timer >= 60){
+				monsters[i].timer = 0;
+				(*playerHealth)--;
 			}
 		}
 		else{
