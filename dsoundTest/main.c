@@ -43,7 +43,11 @@ typedef int int32;
 static inline void  enable_sound(){REG_SND_STAT |= 0x80;}
 static inline void disable_sound(){REG_SND_STAT &= ~0x80;}
 
-int8 pSample[4000];
+//int8 pSample[304*30];
+
+int8 soundBuffer[304];
+
+int8 soundData[900];
 
 // Timer flags
 #define TIMER_ENABLED       0x0080
@@ -70,16 +74,9 @@ int main(void){
 	
 	REG_DISPLAY = 0x0403;
 	
-	int pitch = 6;
-	for(int i = 0; i < 4000; i++){
-		pSample[i] = (i % pitch) >= (pitch/2) ? 120 : -120;
-		
-		if(i % 100 == 0){
-			pitch++;
-			if(pitch >= 10){
-				pitch = 6;
-			}
-		}
+	int pitch = 30;
+	for(int i = 0; i < 900; i++){
+		soundData[i] = (i % pitch) >= (pitch/2) ? 120 : -120;
 	}
 	
 	
@@ -88,11 +85,9 @@ int main(void){
 	REG_SND_DMGCNT = 0x3F;
 	
 	REG_SND_DSCNT = 0x0606 | (1 << 8) | (1 << 9);
-	REG_TM0D = 65536 - (16777216 / 1000);
-	REG_TM0CNT = 0x80;
-	REG_TM1D = 65536 - (16777216 / 1000);
+	REG_TM1D = 65536 - (16777216 / 18157);
 	REG_TM1CNT = 0x80;
-	REG_DMA1_SRCADDR = (uint32) pSample;
+	REG_DMA1_SRCADDR = (uint32) soundBuffer;
 	REG_DMA1_DSTADDR = 0x040000A0;
 	REG_DMA1_CNT = 0xB640000E;
 	
@@ -101,6 +96,7 @@ int main(void){
 		FRAME_MEM[240+i] = 0x2CC5;
 	}
 	
+	int soundCursor = 0;
 	int idx = 0;
 	while(1){
 		VBlankIntrWait();
@@ -113,7 +109,12 @@ int main(void){
 			FRAME_MEM[j+240*5] = 0x7FFF;
 		}
 		
-		if(idx >= 60){
+		for(int i = 0; i < ARRAY_LENGTH(soundBuffer); i++){
+			soundBuffer[i] = soundData[soundCursor];
+			soundCursor = (soundCursor + 1) % ARRAY_LENGTH(soundData);
+		}
+		
+		if(idx >= 0){
 			idx = 0;
 			
 			/*
@@ -131,12 +132,19 @@ int main(void){
 			*/
 			
 			
+			//REG_DMA1_CNT = 0;
+			
 			REG_DMA1_CNT = 0;
-			
-			
-			REG_DMA1_SRCADDR = (uint32) pSample;
-			REG_DMA1_DSTADDR = 0x040000A0;
 			REG_DMA1_CNT = 0xB640000E;
+			
+			int a = 17;
+			int b = 17;
+			a += b;
+			
+			
+			//REG_DMA1_SRCADDR = (uint32) pSample;
+			//REG_DMA1_DSTADDR = 0x040000A0;
+			//REG_DMA1_CNT = 0xB640000E;
 			
 			idx = 0;
 		}
