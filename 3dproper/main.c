@@ -33,6 +33,8 @@ typedef uint16 rgb15;
 #define BUTTON_B 0x0002
 #define BUTTON_SELECT 0x0004
 #define BUTTON_START 0x0008
+#define BUTTON_R 0x0100
+#define BUTTON_L 0x0200
 
 static inline int clamp(int value, int min, int max) { return (value < min ? min : (value > max ? max : value)); }
 
@@ -129,9 +131,16 @@ int main(){
 			playerPos = VecSub(playerPos, VecScale(playerForward, fixedFromFlt(0.5f)));
 		}
 		if(keyStates & KEY_LEFT){
-			playerAngle += fixedFromFlt(2.5f);
+			playerPos = VecSub(playerPos, VecScale(playerRight, fixedFromFlt(0.f)));
 		}
 		if(keyStates & KEY_RIGHT){
+			playerPos = VecAdd(playerPos, VecScale(playerRight, fixedFromFlt(0.f)));
+		}
+		
+		if(keyStates & BUTTON_L){
+			playerAngle += fixedFromFlt(2.5f);
+		}
+		if(keyStates & BUTTON_R){
 			playerAngle -= fixedFromFlt(2.5f);
 		}
 		
@@ -154,8 +163,8 @@ int main(){
 				int32 pixelStart = roundFixedToInt(startProjDotRight*SCREEN_WIDTH)+SCREEN_WIDTH/2;
 				int32 pixelEnd   = roundFixedToInt(  endProjDotRight*SCREEN_WIDTH)+SCREEN_WIDTH/2;
 				
-				fixed startDepth = forwardDotToStart;
-				fixed endDepth = forwardDotToEnd;
+				fixed startDepth = mySqrt(forwardDotToStart);
+				fixed endDepth = mySqrt(forwardDotToEnd);
 				
 				if(pixelStart > pixelEnd){
 					int32 temp = pixelStart;

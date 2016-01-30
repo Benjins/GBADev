@@ -84,14 +84,21 @@ int main(void){
 	irqInit();
 	irqEnable(IRQ_VBLANK);
 	
+	int pitch = 10;
 	for(int i = 0; i < 1024*20; i++){
-		pSample[i] = (i % 4) * 20;
+		pSample[i] = (i % pitch) >= (pitch/2) ? 120 : -120;
+		
+		if(i % 100 == 0){
+			pitch++;
+			if(pitch >= 20){
+				pitch = 10;
+			}
+		}
 	}
 	
 	enable_sound();
 	
 	REG_SND_DMGCNT = 0x3F;
-	REG_DMA1_CNT = 0xB640000E;
 	
 	REG_SND_DSCNT = 0x0606;
 	REG_TM0D = 65536 - (16777216 / 1000);
@@ -99,18 +106,19 @@ int main(void){
 	REG_TM1D = 65536 - (16777216 / 1000);
 	REG_TM1CNT = 0x80;
 	REG_DMA1_SRCADDR = (uint32) pSample;
-	//REG_DMA1_DSTADDR = 0x040000A0;
+	REG_DMA1_DSTADDR = 0x040000A0;
+	REG_DMA1_CNT = 0xB640000E;
 	
 	int8* ptr = (int8*)0x040000A0;
 	
 	int idx = 0;
 	while(1){
 		//asm("swi 0x05");
-		ptr[idx % 4] = (idx % 100 + 20);
+		//ptr[idx % 4] = (idx % 100 + 20);
 		idx++;
 	}
 	
 	return 0;
 }
-
+ 
 
