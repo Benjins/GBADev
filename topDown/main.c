@@ -1,8 +1,4 @@
-#include <gba_console.h>
-#include <gba_video.h>
 #include <gba_interrupt.h>
-#include <gba_systemcalls.h>
-#include <gba_input.h>
 
 typedef unsigned char uint8;
 typedef unsigned short uint16;
@@ -281,6 +277,8 @@ int main(void) {
 	Sprite font[] = {aFont, bFont, cFont, dFont, eFont, fFont, gFont, hFont, iFont,
 					jFont, kFont, lFont, mFont, nFont, oFont, pFont, qFont, rFont, sFont,
 					tFont, uFont, vFont, wFont, xFont, yFont, zFont};
+					
+	static_assert(ARRAY_LENGTH(font) == 26, "Font must have 26 characters.");
 	
 	for(int i = 0; i < 4; i++){
 		volatile uint16* text_box_tile_memory = (uint16 *)tile_memory[4][i+2+DIR_COUNT];
@@ -381,7 +379,8 @@ int main(void) {
 	HideTextBox();
 	
 	while (1) {
-		VBlankIntrWait();
+		//VBlankIntrWait();
+		asm("swi 0x05");
 		
 		uint32 key_states = ~REG_KEY_INPUT & KEY_ANY;
 		
