@@ -45,9 +45,7 @@ static inline void disable_sound(){REG_SND_STAT &= ~0x80;}
 
 //int8 pSample[304*30];
 
-int8 soundBuffer[304];
-
-int8 soundData[900];
+int8 soundBuffer[96];
 
 // Timer flags
 #define TIMER_ENABLED       0x0080
@@ -68,16 +66,20 @@ int8 soundData[900];
 #define FRAME_MEM ((volatile uint16*)MEM_VRAM)
 #define REG_DISPLAY        (*((volatile uint32 *)(MEM_IO)))
 
+#include "sounds.h"
+
 int main(void){
 	irqInit();
 	irqEnable(IRQ_VBLANK);
 	
 	REG_DISPLAY = 0x0403;
 	
+	/*
 	int pitch = 30;
 	for(int i = 0; i < 900; i++){
 		soundData[i] = (i % pitch) >= (pitch/2) ? 120 : -120;
 	}
+	*/
 	
 	
 	enable_sound();
@@ -85,7 +87,7 @@ int main(void){
 	REG_SND_DMGCNT = 0x3F;
 	
 	REG_SND_DSCNT = 0x0606 | (1 << 8) | (1 << 9);
-	REG_TM1D = 65536 - (16777216 / 18157);
+	REG_TM1D = 65536 - (16777216 / 5734);
 	REG_TM1CNT = 0x80;
 	REG_DMA1_SRCADDR = (uint32) soundBuffer;
 	REG_DMA1_DSTADDR = 0x040000A0;
@@ -110,8 +112,8 @@ int main(void){
 		}
 		
 		for(int i = 0; i < ARRAY_LENGTH(soundBuffer); i++){
-			soundBuffer[i] = soundData[soundCursor];
-			soundCursor = (soundCursor + 1) % ARRAY_LENGTH(soundData);
+			soundBuffer[i] = snd.data[soundCursor];
+			soundCursor = (soundCursor + 1) % snd.dataLength;
 		}
 		
 		if(idx >= 0){

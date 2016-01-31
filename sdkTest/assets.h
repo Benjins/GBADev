@@ -1,4 +1,6 @@
-typedef struct{int type; int width; int height; unsigned short* data;} Sprite;static unsigned short ballSprite_data[] = {
+typedef struct{int type; int width; int height; unsigned short* data;} Sprite;
+ 	 typedef struct{Sprite map; Sprite* bgSprites; int bgCount;} Background;
+static unsigned short ballSprite_data[] = {
 1,0,0,0,0,0,0,0,1,2,1,1,1,1,2,0,1,1,1,1,3,1,1,0,1,1,3,1,3,1,1,1,1,1,3,1,3,1,1,1,1,1,1,1,3,1,1,0,1,2,1,1,1,1,2,0,1,0,0,0,0,0,0,0,};
 static Sprite ballSprite = {0, 8, 8, ballSprite_data
 };
