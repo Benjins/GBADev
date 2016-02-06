@@ -56,12 +56,7 @@ int8* currBuffer = soundBuffer;
 // Timer flags
 #define TIMER_ENABLED       0x0080
 
-
-#include <gba_console.h>
-#include <gba_video.h>
 #include <gba_interrupt.h>
-#include <gba_systemcalls.h>
-#include <gba_input.h>
 
 #define SCREEN_WIDTH  240
 #define SCREEN_HEIGHT 160
@@ -99,7 +94,7 @@ int main(void){
 	int sample = 0;
 	
 	while(1){
-		VBlankIntrWait();
+		asm("swi 0x05");
 		sample += SOUND_BUFFER_SIZE;
 		
 		for(int x = 0; x < SCREEN_WIDTH; x += 3){
