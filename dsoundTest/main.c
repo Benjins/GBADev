@@ -30,6 +30,10 @@ typedef int int32;
 #define REG_DMA1_DSTADDR (*(volatile uint32*)0x40000C0)
 #define REG_DMA1_CNT     (*(volatile uint32*)0x40000C4)
 
+#define REG_DMA3_SRCADDR (*(volatile uint32*)0x40000D4)
+#define REG_DMA3_DSTADDR (*(volatile uint32*)0x40000D8)
+#define REG_DMA3_CNT     (*(volatile uint32*)0x40000DC)
+
 // DMA flags
 #define HALF_WORD_DMA       0x00000000
 #define DEST_REG_SAME       0x00400000
@@ -45,15 +49,13 @@ static inline void disable_sound(){REG_SND_STAT &= ~0x80;}
 
 //int8 pSample[304*30];
 
-int8 soundBuffer[96];
+#define SOUND_BUFFER_SIZE 96
+int8 soundBuffer[SOUND_BUFFER_SIZE*2];
+int8* currBuffer = soundBuffer;
 
 // Timer flags
 #define TIMER_ENABLED       0x0080
 
-// our Timer interval that we calculated earlier (note that this
-// value depends on our playback frequency and is therefore not set in
-// stone)
-#define TIMER_INTERVAL      (0xFFFF - 761)
 
 #include <gba_console.h>
 #include <gba_video.h>
@@ -61,12 +63,16 @@ int8 soundBuffer[96];
 #include <gba_systemcalls.h>
 #include <gba_input.h>
 
+#define SCREEN_WIDTH  240
+#define SCREEN_HEIGHT 160
+
 #define MEM_IO   0x04000000
 #define MEM_VRAM 0x06000000
 #define FRAME_MEM ((volatile uint16*)MEM_VRAM)
 #define REG_DISPLAY        (*((volatile uint32 *)(MEM_IO)))
 
 #include "sounds.h"
+#include "midi.h"
 
 int main(void){
 	irqInit();
@@ -74,13 +80,9 @@ int main(void){
 	
 	REG_DISPLAY = 0x0403;
 	
-	/*
-	int pitch = 30;
-	for(int i = 0; i < 900; i++){
-		soundData[i] = (i % pitch) >= (pitch/2) ? 120 : -120;
+	for(int i = 0; i < SCREEN_WIDTH*SCREEN_HEIGHT; i++){
+		FRAME_MEM[i] = 0;
 	}
-	*/
-	
 	
 	enable_sound();
 	
@@ -93,62 +95,56 @@ int main(void){
 	REG_DMA1_DSTADDR = 0x040000A0;
 	REG_DMA1_CNT = 0xB640000E;
 	
-	
-	for(int i = 0; i < 200; i++){
-		FRAME_MEM[240+i] = 0x2CC5;
-	}
-	
 	int soundCursor = 0;
-	int idx = 0;
+	int sample = 0;
+	
 	while(1){
 		VBlankIntrWait();
-		idx++;
+		sample += SOUND_BUFFER_SIZE;
 		
-		for(int j = 0; j < 61; j++){
-			FRAME_MEM[j+240*5] = 0;
-		}
-		for(int j = 0; j < idx; j++){
-			FRAME_MEM[j+240*5] = 0x7FFF;
-		}
-		
-		for(int i = 0; i < ARRAY_LENGTH(soundBuffer); i++){
-			soundBuffer[i] = snd.data[soundCursor];
-			soundCursor = (soundCursor + 1) % snd.dataLength;
+		for(int x = 0; x < SCREEN_WIDTH; x += 3){
+			int y = SCREEN_HEIGHT/2 + (currBuffer[x/3]/4);
+			FRAME_MEM[x + SCREEN_WIDTH*y] = 0;
+			FRAME_MEM[x + SCREEN_WIDTH*y + 1] = 0;
+			FRAME_MEM[x + SCREEN_WIDTH*y + 2] = 0;
 		}
 		
-		if(idx >= 0){
-			idx = 0;
-			
-			/*
-			pitch = 20;
-			for(int i = 0; i < 4000; i++){
-				pSample[i] = (i % pitch) >= (pitch/2) ? 120 : -120;
-				
-				if(i % 100 == 0){
-					pitch++;
-					if(pitch >= 30){
-						pitch = 20;
-					}
+		for(int k = 0; k < SOUND_BUFFER_SIZE; k++){
+			currBuffer[k] = 0;
+		}
+		
+		for(int i = 0; i < testSong.length; i++){
+			if(testSong.notes[i].start < sample && testSong.notes[i].start + testSong.notes[i].length > sample){
+				int offset = sample - testSong.notes[i].start;
+				int pitch = testSong.notes[i].pitch;
+				for(int k = 0; k < SOUND_BUFFER_SIZE; k++){
+					currBuffer[k] += ((offset + k) % pitch > pitch/2) ? 0 : 40;
 				}
 			}
-			*/
-			
-			
-			//REG_DMA1_CNT = 0;
+		}
+		
+		/*
+		for(int i = 0; i < SOUND_BUFFER_SIZE; i++){
+			currBuffer[i] = snd.data[soundCursor];
+			soundCursor = (soundCursor + 1) % snd.dataLength;
+		}
+		*/
+		
+		if(currBuffer == soundBuffer){
+			currBuffer += SOUND_BUFFER_SIZE;
 			
 			REG_DMA1_CNT = 0;
 			REG_DMA1_CNT = 0xB640000E;
-			
-			int a = 17;
-			int b = 17;
-			a += b;
-			
-			
-			//REG_DMA1_SRCADDR = (uint32) pSample;
-			//REG_DMA1_DSTADDR = 0x040000A0;
-			//REG_DMA1_CNT = 0xB640000E;
-			
-			idx = 0;
+		}
+		else{
+			currBuffer = soundBuffer;
+		}
+	
+		for(int x = 0; x < SCREEN_WIDTH; x += 3){
+			int y = SCREEN_HEIGHT/2 + (currBuffer[x/3]/4);
+			FRAME_MEM[x + SCREEN_WIDTH*y] = 0x7FFF;
+			FRAME_MEM[x + SCREEN_WIDTH*y + 1] = 0x7FFF;
+			FRAME_MEM[x + SCREEN_WIDTH*y + 2] = 0x7FFF;
 		}
 	}
 	

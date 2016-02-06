@@ -68,6 +68,9 @@ int xOffset = 0;
 int yOffset = 0;
 int currentPaintIndex = 0;
 
+int currMouseX = 0;
+int currMouseY = 0;
+
 BitmapData* bgSprites = NULL;
 int bgSpriteCount = 0;
 
@@ -228,7 +231,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 				//if (pixelOffsetY < 0) { pixelOffsetY += 16; }
 
 				if (tileX >= 0 && tileX < backMap.width && tileY >= 0 && tileY < backMap.height) {
-					int pixelIdx = tileY*backMap.width + tileX;
+					int pixelIdx = (backMap.height - 1 - tileY)*backMap.width + tileX;
 					int spriteIdx = ((int*)backMap.data)[pixelIdx] / TILE_INDEX_MULTIPLIER;
 					if (spriteIdx > 0) {
 						BitmapData sprite = bgSprites[spriteIdx - 1];
@@ -237,9 +240,37 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 				}
 			}
 		}
+		
+		int backMapX = (currMouseX + xOffset) / tileSize;
+		int backMapY = (currMouseY + yOffset) / tileSize;
+		
+		int* frameMem = (int*)frameBuffer.data;
+		
+		int xMin = backMapX * tileSize  - xOffset;
+		int xMax = (backMapX+1) * tileSize  - xOffset;
+		int yMin = backMapY * tileSize  - yOffset;
+		int yMax = (backMapY+1) * tileSize  - yOffset;
+		
+		xMin = clamp(xMin, 0, frameBuffer.width - 1);
+		xMax = clamp(xMax, 0, frameBuffer.width - 1);
+		yMin = clamp(yMin, 0, frameBuffer.height - 1);
+		yMax = clamp(yMax, 0, frameBuffer.height - 1);
+		
+		for(int j = yMin; j < yMax; j++){
+			for(int i = xMin; i < xMax; i++){
+				int frameIdx = (frameBuffer.height - j - 1)*frameBuffer.width+i;
+				frameMem[frameIdx] ^= 0xFFFFFF;
+			}
+		}
 
+		
+		int redCol = 0xFFFFFF;
+		BitmapData redBMP = {&redCol, 1, 1};
+		DrawBitmap(frameBuffer, currentPaintIndex*34,frameBuffer.height - 34, 34, 34, redBMP);
+		
+		
 		for (int i = 0; i < bgSpriteCount; i++) {
-			DrawBitmap(frameBuffer, (i+1) * 32, frameBuffer.height - 32, 32, 32, bgSprites[i]);
+			DrawBitmap(frameBuffer, (i+1) * 34 + 1, frameBuffer.height - 33, 32, 32, bgSprites[i]);
 		}
 		
 		//DrawBitmap(frameBuffer, 100, 100, 400, 220, sprite);
@@ -359,16 +390,19 @@ void MouseDown(int mouseX, int mouseY) {
 	int tileSize = (int)(16 * zoomLevel);
 	int frameWidth = bmpInfo.bmiHeader.biWidth;
 	int frameHeight = bmpInfo.bmiHeader.biHeight;
+	
+	currMouseX = mouseX;
+	currMouseY = mouseY;
 
 	int backMapX = (mouseX + xOffset) / tileSize;
 	int backMapY = (mouseY + yOffset) / tileSize;
 
 	if (RangeCheck(-1, backMapX, backMap.width) && RangeCheck(-1, backMapY, backMap.height) && RangeCheck(0, mouseY, frameHeight - 32)){
-		int backMapIdx = backMap.width * backMapY + backMapX;
+		int backMapIdx = backMap.width * (backMap.height - 1 - backMapY) + backMapX;
 		((int*)backMap.data)[backMapIdx] = currentPaintIndex * TILE_INDEX_MULTIPLIER;
 	}
 	else if (RangeCheck(frameHeight-33, mouseY, frameHeight)) {
-		currentPaintIndex = clamp(mouseX / 32, 0, bgSpriteCount+1);
+		currentPaintIndex = clamp(mouseX / 34, 0, bgSpriteCount);
 	}
 }
 
@@ -394,6 +428,9 @@ LRESULT CALLBACK MyGuiWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 		{
 			int mouseX = GET_X_LPARAM(lParam);
 			int mouseY = GET_Y_LPARAM(lParam);
+			
+			currMouseX = mouseX;
+			currMouseY = mouseY;
 
 			if (wParam & MK_LBUTTON) {
 				MouseDown(mouseX, mouseY);
