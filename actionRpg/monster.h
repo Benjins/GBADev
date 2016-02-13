@@ -21,6 +21,33 @@ typedef struct{
 	short timerGoal;
 } Monster;
 
+inline void ResolveCollisions(int* startPos, int* moveDir, int* outPos){
+	static const int offsetVec[2] = {SCREEN_WIDTH/2, SCREEN_HEIGHT/2};
+	
+	for(int j = 0; j < 2; j++){
+		int currPos = startPos[j] + offsetVec[j];
+		int nextPos = currPos + moveDir[j];
+		
+		int currOtherTile = (startPos[1 - j] + offsetVec[1 - j]) / 8;
+		int currTile = currPos / 8;
+		int nextTile = nextPos / 8;
+		if(currTile == nextTile){
+			outPos[j] = nextPos - offsetVec[j];
+		}
+		else{
+			int newTileIdx = nextTile + backMap.map.width*currOtherTile;
+			if(j == 1){
+				newTileIdx = currOtherTile + backMap.map.width*nextTile;
+			}
+			
+			int tileID = backMap.map.data[newTileIdx]-1;
+			if(backMap.spriteFlags[tileID] & 0x01){
+				outPos[j] = nextPos - offsetVec[j];
+			}
+		}
+	}
+}
+
 void UpdateMonsters(Monster* monsters, int monsterCount, int playerX, int playerY, int* playerHealth){
 	int playerPos[2] = {playerX, playerY};
 	
@@ -29,8 +56,11 @@ void UpdateMonsters(Monster* monsters, int monsterCount, int playerX, int player
 		int playerDistSqr = playerDir[0]*playerDir[0] + playerDir[1]*playerDir[1];
 		
 		if(monsters[i].currState >= PATROL_FIRST && monsters[i].currState <= PATROL_LAST){
+			int newPos[2] = {monsters[i].position[0], monsters[i].position[1]};
+			ResolveCollisions(monsters[i].position, directionVectors[monsters[i].currState - PATROL_FIRST], newPos);
+			
 			for(int j = 0; j < 2; j++){
-				monsters[i].position[j] += directionVectors[monsters[i].currState][j];
+				monsters[i].position[j] = newPos[j];
 			}
 			
 			monsters[i].timer++;
@@ -58,6 +88,7 @@ void UpdateMonsters(Monster* monsters, int monsterCount, int playerX, int player
 			}
 		}
 		else if(monsters[i].currState == SEEK){
+			int moveVec[2] = {};
 			if(playerDistSqr <= fightDistSqr){
 				monsters[i].currState = FIGHT;
 				monsters[i].timer = 60;
@@ -67,10 +98,17 @@ void UpdateMonsters(Monster* monsters, int monsterCount, int playerX, int player
 				monsters[i].currState = (MonsterState)(PATROL_FIRST + (GetRandom() % PATROL_LAST - PATROL_FIRST));
 			}
 			else if(abs(playerDir[0]) > abs(playerDir[1])){
-				monsters[i].position[0] += signum(playerDir[0]);
+				moveVec[0] = signum(playerDir[0]);
 			}
 			else{
-				monsters[i].position[1] += signum(playerDir[1]);
+				moveVec[1] = signum(playerDir[1]);
+			}
+			
+			int newPos[2] = {monsters[i].position[0], monsters[i].position[1]};
+			ResolveCollisions(monsters[i].position, moveVec, newPos);
+			
+			for(int j = 0; j < 2; j++){
+				monsters[i].position[j] = newPos[j];
 			}
 		}
 		else if(monsters[i].currState == FIGHT){
