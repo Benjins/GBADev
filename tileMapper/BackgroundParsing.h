@@ -90,7 +90,7 @@ BackgroundAsset ParseBGAssetFile(char* fileName) {
 			spriteFileName.start = bgCursor;
 			spriteFileName.length = endOfFileName - bgCursor;
 			
-			char* startOfFlags = endOfFileName + strspn(endOfFileName, whitespace);
+			char* startOfFlags = endOfFileName + strspn(endOfFileName, "\t\n\r ;");
 			char* endOfFlags = startOfFlags + strspn(startOfFlags, "0123456789");
 			int spriteFlagsVal = 0;
 			if(endOfFlags != startOfFlags){

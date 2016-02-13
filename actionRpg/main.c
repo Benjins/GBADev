@@ -387,47 +387,78 @@ int main(void) {
 			int player_max_clamp_y = SCREEN_HEIGHT - player_height;
 			int player_max_clamp_x = SCREEN_WIDTH - player_width;
 			
+			int newPlayerX = playerX;
+			int newPlayerY = playerY;
+			
 			if (key_states & KEY_LEFT) {
-				playerX--;
+				newPlayerX--;
 				playerDir = LEFT;
 			}
 			if (key_states & KEY_RIGHT) {
-				playerX++;
+				newPlayerX++;
 				playerDir = RIGHT;
 			}
 			if (key_states & KEY_UP) {
-				playerY--;
+				newPlayerY--;
 				playerDir = UP;
 			}
 			if (key_states & KEY_DOWN) {
-				playerY++;
+				newPlayerY++;
 				playerDir = DOWN;
 			}
 			
 			playerAttribs->attribute_two = 1+playerDir;
 			
+			int playerTileX = (playerX + SCREEN_WIDTH/2)/8;
+			int playerTileY = (playerY + SCREEN_HEIGHT/2)/8;
+			
+			int newPlayerTileX = (newPlayerX + SCREEN_WIDTH/2)/8;
+			int newPlayerTileY = (newPlayerY + SCREEN_HEIGHT/2)/8;
+			
+			if(newPlayerTileX == playerTileX){
+				playerX = newPlayerX;
+			}
+			else{
+				int newTileIdx = newPlayerTileX + backMap.map.width*playerTileY;
+				int tileID = backMap.map.data[newTileIdx];
+				if(backMap.spriteFlags[tileID] & 0x01){
+					playerX = newPlayerX;
+				}
+			}
+			
+			if(newPlayerTileY == playerTileY){
+				playerY = newPlayerY;
+			}
+			else{
+				int newTileIdx = playerTileX + backMap.map.width*newPlayerTileY;
+				int tileID = backMap.map.data[newTileIdx];
+				if(backMap.spriteFlags[tileID] & 0x01){
+					playerY = newPlayerY;
+				}
+			}
+			
+			int BGTileOffsetX = playerX/8;
+			int BGTileOffsetY = playerY/8;
+			
 			int bgOffsetX = playerX%8;
 			int bgOffsetY = playerY%8;
 			
-			int newBGTileOffsetX = playerX/8;
-			int newBGTileOffsetY = playerY/8;
-			
 			if(bgOffsetX < 0){
 				bgOffsetX += 8;
-				newBGTileOffsetX--;
+				BGTileOffsetX--;
 			}
 			
 			if(bgOffsetY < 0){
 				bgOffsetY += 8;
-				newBGTileOffsetY--;
+				BGTileOffsetY--;
 			}
 			
 			REG_BG0_OFS[0] = bgOffsetX;
 			REG_BG0_OFS[1] = bgOffsetY;
 			
-			if((newBGTileOffsetX != bgTileOffsetX) || (newBGTileOffsetY != bgTileOffsetY)){		
-				bgTileOffsetX = newBGTileOffsetX;
-				bgTileOffsetY = newBGTileOffsetY;
+			if((BGTileOffsetX != bgTileOffsetX) || (BGTileOffsetY != bgTileOffsetY)){		
+				bgTileOffsetX = BGTileOffsetX;
+				bgTileOffsetY = BGTileOffsetY;
 				
 				for(int j = 0; j < 32; j++){
 					for(int i = 0; i < 32; i++){

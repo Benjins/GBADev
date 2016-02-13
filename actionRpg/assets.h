@@ -200,7 +200,7 @@ backMap_bg11,
 backMap_bg12,
 };
 int backMap_flags[] = {
-0,0,0,0,0,0,0,0,0,0,0,0,0,};
+0,0,0,0,0,0,0,1,1,1,1,1,1,};
 Background backMap = {backMap_map, backMap_bgs, backMap_flags, 13};
 rgb15 paletteColors[] = {
 0,32767,9513,4607,4221,991,30336,1625,543,9924,3990,25895,4775,1855,10743,};
