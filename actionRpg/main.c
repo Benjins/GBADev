@@ -420,7 +420,7 @@ int main(void) {
 			}
 			else{
 				int newTileIdx = newPlayerTileX + backMap.map.width*playerTileY;
-				int tileID = backMap.map.data[newTileIdx];
+				int tileID = backMap.map.data[newTileIdx]-1;
 				if(backMap.spriteFlags[tileID] & 0x01){
 					playerX = newPlayerX;
 				}
@@ -431,7 +431,7 @@ int main(void) {
 			}
 			else{
 				int newTileIdx = playerTileX + backMap.map.width*newPlayerTileY;
-				int tileID = backMap.map.data[newTileIdx];
+				int tileID = backMap.map.data[newTileIdx]-1;
 				if(backMap.spriteFlags[tileID] & 0x01){
 					playerY = newPlayerY;
 				}

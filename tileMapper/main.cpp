@@ -162,9 +162,6 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 				int pixelOffsetX = -xOffset % tileSize;
 				int pixelOffsetY = -yOffset % tileSize;
 
-				//if (pixelOffsetX < 0) { pixelOffsetX += 16; }
-				//if (pixelOffsetY < 0) { pixelOffsetY += 16; }
-
 				if (tileX >= 0 && tileX < backMap.width && tileY >= 0 && tileY < backMap.height) {
 					int pixelIdx = (backMap.height - 1 - tileY)*backMap.width + tileX;
 					int spriteIdx = ((int*)backMap.data)[pixelIdx] / TILE_INDEX_MULTIPLIER;
@@ -216,7 +213,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 		
 		if(currentPaintIndex > 0){
 			
-			int flags = bgAsset.sprites[currentPaintIndex].flags;
+			int flags = bgAsset.sprites[currentPaintIndex-1].flags;
 			
 			int index = 0;
 			for(int i = 1; i < MAX_SPRITE_FLAG; i *= 2){
@@ -227,12 +224,30 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 				
 				if(Button(frameBuffer, frameBuffer.width - 150, 200 + index*30, 60, 10, 0x55555555, 0xDDDDDDDD, 0xBBBBBBBB, "")){
 					flags ^= i;
-					bgAsset.sprites[currentPaintIndex].flags = (BGSpriteFlags)flags;
+					bgAsset.sprites[currentPaintIndex-1].flags = (BGSpriteFlags)flags;
 				}
 				
 				index++;
 			}
 		}
+		
+
+		
+#if 0
+		//Useful for debugging issues with flags and tile indices.
+		char debugPaintIndex[256] = {};
+		sprintf(debugPaintIndex, "Paint Index: %d", currentPaintIndex);
+		DrawText(frameBuffer, debugPaintIndex, frameBuffer.width - 150, 400, 150, 30);
+		
+		char debugFlagString[256] = {};
+		char* flagStrPtr = debugFlagString;
+		flagStrPtr += sprintf(flagStrPtr, "Flags: ");
+		for(int i = 0; i < bgAsset.spriteCount; i++){
+			flagStrPtr += sprintf(flagStrPtr, "%d, ", bgAsset.sprites[i].flags);
+		}
+		
+		DrawText(frameBuffer, debugFlagString, frameBuffer.width - 180, 450, 150, 80);
+#endif
 		
 		WindowsPaintWindow(window);
 		//xOffset++;
