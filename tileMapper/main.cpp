@@ -54,12 +54,7 @@ inline KeyState StateFromBools(bool wasDown, bool isDown) {
 	return (KeyState)((wasDown ? 1 : 0) | (isDown ? 2 : 0));
 }
 
-struct BackgroundAsset {
-	char* backMap;
-	char* backMapFile;
-	char** sprites;
-	int spriteCount;
-};
+#include "BackgroundParsing.h"
 
 BitmapData backMap = {};
 
@@ -77,76 +72,6 @@ int bgSpriteCount = 0;
 void RenderGradient();
 void WindowsPaintWindow(HWND hwnd);
 
-BackgroundAsset ParseBGAssetFile(char* fileName) {
-	FILE* bgFile = NULL;
-	fopen_s(&bgFile, fileName, "rb");
-
-	char* whitespace = "\n\r\t ";
-	char* spaceAndColon = "\t :";
-	char* spaceAndComma = "\t ,";
-
-	if (bgFile != NULL) {
-		fseek(bgFile, 0, SEEK_END);
-		size_t fileSize = ftell(bgFile);
-		fseek(bgFile, 0, SEEK_SET);
-
-		char* fileBuffer = (char*)malloc(fileSize + 1);
-		fread(fileBuffer, 1, fileSize, bgFile);
-		fileBuffer[fileSize] = '\0';
-		fclose(bgFile);
-
-		BackgroundAsset bgAsset = {};
-
-		char* backMapStart = fileBuffer + strspn(fileBuffer, whitespace);
-		int backMapLength = strcspn(backMapStart, spaceAndColon);
-
-		bgAsset.backMap = (char*)malloc(backMapLength+1);
-		memcpy(bgAsset.backMap, backMapStart, backMapLength);
-		bgAsset.backMap[backMapLength] = '\0';
-
-		char* backMapEnd = backMapStart + backMapLength;
-		char* backMapFileStart = backMapEnd + strspn(backMapEnd, spaceAndColon);
-		int backMapFileLength = strcspn(backMapFileStart, spaceAndColon);
-
-		bgAsset.backMapFile = (char*)malloc(backMapFileLength + 1);
-		memcpy(bgAsset.backMapFile, backMapFileStart, backMapFileLength);
-		bgAsset.backMapFile[backMapFileLength] = '\0';
-		
-		char* bgCursor = backMapFileStart + backMapFileLength + 1;
-		char* nextComma = bgCursor;
-		char* nextNewline = strstr(bgCursor, "\n");
-		while (nextComma != NULL && (nextComma < nextNewline || nextNewline == NULL)) {
-			bgCursor += strspn(bgCursor, whitespace);
-
-			char* endOfFileName = bgCursor + strcspn(bgCursor, " \t\n\r,");
-			Token spriteFileName;
-			spriteFileName.start = bgCursor;
-			spriteFileName.length = endOfFileName - bgCursor;
-
-			char** newSpriteNames = (char**)malloc((bgAsset.spriteCount+1)*sizeof(char*));
-			memcpy(newSpriteNames, bgAsset.sprites, bgAsset.spriteCount*sizeof(char*));
-
-			newSpriteNames[bgAsset.spriteCount] = (char*)malloc(spriteFileName.length+1);
-			memcpy(newSpriteNames[bgAsset.spriteCount], spriteFileName.start, spriteFileName.length);
-			newSpriteNames[bgAsset.spriteCount][spriteFileName.length] = '\0';
-			SAFE_FREE(bgAsset.sprites);
-			bgAsset.sprites = newSpriteNames;
-
-			nextComma = strstr(bgCursor, ",");
-			nextNewline = strstr(bgCursor, "\n");
-			bgCursor = nextComma + 1;
-			bgAsset.spriteCount++;
-		}
-
-		free(fileBuffer);
-
-		return bgAsset;
-	}
-	else {
-		printf("Could not open bg file '%s'.", fileName);
-		return{};
-	}
-}
 
 int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 					 LPSTR cmdLine, int cmdShow) {
@@ -182,7 +107,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 	bgSprites = (BitmapData*)malloc(sizeof(BitmapData)*bgSpriteCount);
 	for (int i = 0, spriteIndex = 0; i < bgAsset.spriteCount; i++, spriteIndex++) {
 		char bgSpriteName[256] = {};
-		snprintf(bgSpriteName, 256, "%.*s/%s", arg1Length, arg1Str, bgAsset.sprites[i]);
+		snprintf(bgSpriteName, 256, "%.*s/%s", arg1Length, arg1Str, bgAsset.sprites[i].fileName);
 		bgSprites[spriteIndex] = LoadBMPFile(bgSpriteName);
 
 		if (bgSprites[i].data == NULL) {
@@ -297,6 +222,10 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 		if (keyStates['Z'] > 1) {
 			zoomLevel *= 1.01f;
 		}
+		
+		if(keyStates['T']  == PRESS){
+			WriteBGAssetFile(bgAsset, backgroundAssetFileName);
+		}
 
 		if (keyStates['F'] == PRESS) {
 			for (int i = 0; i < backMap.width*backMap.height; i++) {
@@ -311,10 +240,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 			backMapCopy.data = malloc(backMapCopy.width*backMapCopy.height * 4);
 
 			for (int i = 0; i < backMapCopy.width * backMapCopy.height; i++) {
-				int x = (i % backMapCopy.width);
-				int y = (i / backMapCopy.width);
-				int cpyIdx = x + (backMapCopy.height - 1 - y)*backMapCopy.width;
-				((int*)backMapCopy.data)[cpyIdx] = ((int*)backMap.data)[i];// TILE_INDEX_MULTIPLIER;
+				((int*)backMapCopy.data)[i] = ((int*)backMap.data)[i];// TILE_INDEX_MULTIPLIER;
 			}
 
 			char bgMapFile[256] = {};

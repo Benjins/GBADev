@@ -75,6 +75,8 @@ void WritePalette(Palette* palette, FILE* assetHeader);
 
 void WriteBackground(char* folderName, Token varName, Token fileName, FILE* assetHeader);
 
+#include "tileMapper/BackgroundParsing.h"
+
 int main(int argc, char** argv){
 
 	if(argc != 2){
@@ -118,7 +120,7 @@ int main(int argc, char** argv){
 	
 	char headerStart[512] = 
 	"typedef struct{int type; int width; int height; unsigned short* data;} Sprite;\n \
-	 typedef struct{Sprite map; Sprite* bgSprites; int bgCount;} Background;\n";
+	 typedef struct{Sprite map; Sprite* bgSprites; int* spriteFlags; int bgCount;} Background;\n";
 	
 	fprintf(assetsHeaderFile, "%s", headerStart);
 	
@@ -161,91 +163,39 @@ int main(int argc, char** argv){
 	if(backgroundFile != NULL){
 		printf("Opening background file '%s'.\n", backgroundFileName);
 		
-		fseek(backgroundFile, 0, SEEK_END);
-		size_t backgroundFileSize = ftell(backgroundFile);
-		fseek(backgroundFile, 0, SEEK_SET);
-		
-		char* backgroundFileContents = (char*)malloc(backgroundFileSize+1);
-		fread(backgroundFileContents, 1, backgroundFileSize, backgroundFile);
 		fclose(backgroundFile);
+		BackgroundAsset bgAsset = ParseBGAssetFile(backgroundFileName);
 		
-		char* bgCursor = backgroundFileContents;
-		while(bgCursor != NULL && bgCursor >= backgroundFileContents && (bgCursor - backgroundFileContents) < backgroundFileSize){
-			bgCursor += strspn(bgCursor, whitespace);
-			
-			if(*bgCursor == '\0'){
-				break;
-			}
-			
-			char* colon = strchr(bgCursor, ':');
-			
-			if(*colon == '\0'){
-				break;
-			}
-			
-			Token varName;
-			varName.start = bgCursor;
-			varName.length = colon - bgCursor;
-			
-			bgCursor = colon + 1;
-			bgCursor += strspn(bgCursor, whitespace);
-			
-			colon = strchr(bgCursor, ':');
-			
-			Token fileName;
-			fileName.start = bgCursor;
-			fileName.length = colon - bgCursor;
-			
-			bgCursor = colon + 1;
-			
-			//printf("Bg cursor: '%.6s'\n", bgCursor);
-			
-			char* nextComma = bgCursor;
-			char* nextNewLine = strstr(bgCursor, "\n");
-			
-			int spriteIndex = 1;
-			while((size_t)nextComma > 200 && (nextComma < nextNewLine || nextNewLine == NULL)){
-				bgCursor += strspn(bgCursor, whitespace);
-				
-				char* endOfFileName = bgCursor + strcspn(bgCursor, " \t\n\r,");
-				Token spriteFileName;
-				spriteFileName.start = bgCursor;
-				spriteFileName.length = endOfFileName - bgCursor;
-				if(bgCursor == NULL){
-					//spriteFileName.length = 5;
-				}
-				
-				char spriteVarNameStr[256] = {};
-				int spriteVarNameLength = sprintf(spriteVarNameStr, "%.*s_bg%d", varName.length, varName.start, spriteIndex);
-				Token spriteVarName = {spriteVarNameStr, spriteVarNameLength};
-				
-				printf("Found bg sprite named '%.*s'\n", spriteVarName.length, spriteVarName.start);
-				
-				WriteAsset(argv[1], spriteVarName, spriteFileName, assetsHeaderFile, &palette, true);
-				
-				nextComma = strstr(bgCursor, ",");
-				nextNewLine = strstr(bgCursor, "\n");
-				bgCursor = nextComma+1;
-				spriteIndex++;
-			}
-			
-			char bgVarNameStr[256] = {};
-			int bgVarNameLength = sprintf(bgVarNameStr, "%.*s_map", varName.length, varName.start);
-			Token bgVarName = {bgVarNameStr, bgVarNameLength};
-			
-			WriteBackground(argv[1], bgVarName, fileName, assetsHeaderFile);
-			
-			fprintf(assetsHeaderFile, "Sprite %.*s_bgs[] = {\n", varName.length, varName.start);
-			
-			for(int i = 1; i < spriteIndex; i++){
-				fprintf(assetsHeaderFile, "%.*s_bg%d,\n", varName.length, varName.start, i);
-			}
-			
-			fprintf(assetsHeaderFile, "};\n");
-			
-			fprintf(assetsHeaderFile, "Background %.*s = {%.*s_map, %.*s_bgs, %d};\n", 
-				varName.length, varName.start, varName.length, varName.start, varName.length, varName.start, spriteIndex-1);
+		for(int i = 0; i < bgAsset.spriteCount; i++){
+			char spriteVarNameStr[256] = {};
+			int spriteVarNameLength = sprintf(spriteVarNameStr, "%s_bg%d", bgAsset.backMap, i);
+			Token spriteVarName = {spriteVarNameStr, spriteVarNameLength};
+			printf("Found bg sprite named '%.*s'\n", spriteVarName.length, spriteVarName.start);
+			Token bgSpriteFile = {bgAsset.sprites[i].fileName, strlen(bgAsset.sprites[i].fileName)};
+			WriteAsset(argv[1], spriteVarName, bgSpriteFile, assetsHeaderFile, &palette, true);
 		}
+		
+		char bgVarNameStr[256] = {};
+		int bgVarNameLength = sprintf(bgVarNameStr, "%s_map", bgAsset.backMap);
+		Token bgVarName = {bgVarNameStr, bgVarNameLength};
+		
+		Token bgFileName = {bgAsset.backMapFile, strlen(bgAsset.backMapFile)};
+		WriteBackground(argv[1], bgVarName, bgFileName, assetsHeaderFile);
+		
+		fprintf(assetsHeaderFile, "Sprite %s_bgs[] = {\n", bgAsset.backMap);
+		for(int i = 0; i < bgAsset.spriteCount; i++){
+			fprintf(assetsHeaderFile, "%s_bg%d,\n", bgAsset.backMap, i);
+		}		
+		fprintf(assetsHeaderFile, "};\n");
+		
+		fprintf(assetsHeaderFile, "int %s_flags[] = {\n", bgAsset.backMap);
+		for(int i = 0; i < bgAsset.spriteCount; i++){
+			fprintf(assetsHeaderFile, "%d,", bgAsset.sprites[i].flags);
+		}
+		fprintf(assetsHeaderFile, "};\n");
+		
+		fprintf(assetsHeaderFile, "Background %s = {%s_map, %s_bgs, %s_flags, %d};\n", 
+				bgAsset.backMap, bgAsset.backMap, bgAsset.backMap, bgAsset.backMap, bgAsset.spriteCount);
 	}
 	else{
 		printf("Could not find '%s', skipping.\n", backgroundFileName);

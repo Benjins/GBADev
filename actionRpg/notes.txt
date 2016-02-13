@@ -1,0 +1,9 @@
+Aciton RGP: The Action RPG.
+(Working title)
+
+TODO:
+ * Overworld with walkable/non-walkable tiles, different tile ids/effects?
+ * Monsters walking around
+ * Combat sequences, turn-based
+ * Objects that can be interacted with
+ * Basic music/sound mixing

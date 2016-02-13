@@ -50,7 +50,7 @@ static inline void disable_sound(){REG_SND_STAT &= ~0x80;}
 //int8 pSample[304*30];
 
 #define SOUND_BUFFER_SIZE 96
-int8 soundBuffer[SOUND_BUFFER_SIZE*2];
+int8 soundBuffer[SOUND_BUFFER_SIZE*3];
 int8* currBuffer = soundBuffer;
 
 // Timer flags
@@ -64,14 +64,32 @@ int8* currBuffer = soundBuffer;
 #define MEM_IO   0x04000000
 #define MEM_VRAM 0x06000000
 #define FRAME_MEM ((volatile uint16*)MEM_VRAM)
-#define REG_DISPLAY        (*((volatile uint32 *)(MEM_IO)))
+#define REG_DISPLAY        (*((volatile uint32*)(MEM_IO)))
+
+#define REG_DISPLAY_STAT (*((volatile uint16*)(MEM_IO + 0x04)))
+
+/*
+#define REG_IE  (*(volatile uint16*)(MEM_IO + 0x0200))
+#define REG_IF  (*(volatile uint16*)(MEM_IO + 0x0202))
+#define REG_IME (*(volatile uint16*)(MEM_IO + 0x0208))
+*/
 
 #include "sounds.h"
 #include "midi.h"
 
 int main(void){
 	irqInit();
-	irqEnable(IRQ_VBLANK);
+	//REG_IME = 1;
+
+	uint16 prevIme = REG_IME;
+	REG_IME = 0;
+
+	REG_DISPLAY_STAT = 0x0008;
+	REG_IE = 1;
+
+	REG_IME = prevIme;
+	
+	//irqEnable(IRQ_VBLANK);
 	
 	REG_DISPLAY = 0x0403;
 	
@@ -94,53 +112,61 @@ int main(void){
 	int sample = 0;
 	
 	while(1){
-		asm("swi 0x05");
-		sample += SOUND_BUFFER_SIZE;
 		
 		for(int x = 0; x < SCREEN_WIDTH; x += 3){
-			int y = SCREEN_HEIGHT/2 + (currBuffer[x/3]/4);
-			FRAME_MEM[x + SCREEN_WIDTH*y] = 0;
-			FRAME_MEM[x + SCREEN_WIDTH*y + 1] = 0;
-			FRAME_MEM[x + SCREEN_WIDTH*y + 2] = 0;
+			int y = SCREEN_HEIGHT/2 + (currBuffer[x/3]);
+			FRAME_MEM[x + SCREEN_WIDTH*y] = 0x7FFF;
+			FRAME_MEM[x + SCREEN_WIDTH*y + 1] = 0x7FFF;
+			FRAME_MEM[x + SCREEN_WIDTH*y + 2] = 0x7FFF;
 		}
+		
+		
+		
+		
+		sample += SOUND_BUFFER_SIZE;
 		
 		for(int k = 0; k < SOUND_BUFFER_SIZE; k++){
 			currBuffer[k] = 0;
 		}
 		
 		for(int i = 0; i < testSong.length; i++){
-			if(testSong.notes[i].start < sample && testSong.notes[i].start + testSong.notes[i].length > sample){
-				int offset = sample - testSong.notes[i].start;
-				int pitch = testSong.notes[i].pitch;
+			int noteStart = testSong.notes[i].start;
+			short pitch = testSong.notes[i].pitch;
+			int noteLength =  testSong.notes[i].length;// ((testSong.notes[i].length + (pitch-1))/pitch)*pitch;
+			int noteEnd = testSong.notes[i].start + noteLength;
+			if(sample >= noteStart && sample < noteEnd){
+				int offset = 0;// sample - testSong.notes[i].start;
+					
 				for(int k = 0; k < SOUND_BUFFER_SIZE; k++){
-					currBuffer[k] += ((offset + k) % pitch > pitch/2) ? 0 : 40;
+					currBuffer[k] += (k % pitch) / 4;//((k + offset) % pitch >= pitch/2) ? 20 : 0;
 				}
 			}
 		}
 		
-		/*
-		for(int i = 0; i < SOUND_BUFFER_SIZE; i++){
-			currBuffer[i] = snd.data[soundCursor];
-			soundCursor = (soundCursor + 1) % snd.dataLength;
-		}
-		*/
-		
 		if(currBuffer == soundBuffer){
-			currBuffer += SOUND_BUFFER_SIZE;
+			currBuffer = soundBuffer + SOUND_BUFFER_SIZE;
 			
 			REG_DMA1_CNT = 0;
 			REG_DMA1_CNT = 0xB640000E;
 		}
+		else if(currBuffer == soundBuffer + SOUND_BUFFER_SIZE){
+			currBuffer = soundBuffer + (2*SOUND_BUFFER_SIZE);
+		}
 		else{
 			currBuffer = soundBuffer;
 		}
-	
+		
+		asm("swi 0x05");
+		//REG_IF = 1;
+		//REG_IE = 1;
+		
 		for(int x = 0; x < SCREEN_WIDTH; x += 3){
-			int y = SCREEN_HEIGHT/2 + (currBuffer[x/3]/4);
-			FRAME_MEM[x + SCREEN_WIDTH*y] = 0x7FFF;
-			FRAME_MEM[x + SCREEN_WIDTH*y + 1] = 0x7FFF;
-			FRAME_MEM[x + SCREEN_WIDTH*y + 2] = 0x7FFF;
+			int y = SCREEN_HEIGHT/2 + (currBuffer[x/3]);
+			FRAME_MEM[x + SCREEN_WIDTH*y] = 0;
+			FRAME_MEM[x + SCREEN_WIDTH*y + 1] = 0;
+			FRAME_MEM[x + SCREEN_WIDTH*y + 2] = 0;
 		}
+		
 	}
 	
 	return 0;

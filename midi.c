@@ -134,7 +134,7 @@ int main(int argc, char** argv){
 	sprintf(midiAssetFileName, "%s/midi.h", dirName);
 	FILE* midiAssetFile = fopen(midiAssetFileName, "wb");
 	
-	fprintf(midiAssetFile, "typedef struct{int start; short length; short pitch;} Note;");
+	fprintf(midiAssetFile, "typedef struct{int start; unsigned short length; short pitch;} Note;");
 	fprintf(midiAssetFile, "typedef struct{Note* notes; int length;} Song;");
 	
 	char* fileCursor = midiTextFileBuffer;
