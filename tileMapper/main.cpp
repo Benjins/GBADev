@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#undef DrawText
+
 #include "Renderer.h"
 #include "Timer.h"
 
@@ -42,7 +44,7 @@ inline bool RangeCheck(int a, int b, int c) {
 }
  
 enum KeyState {
-	DOWN = 0,
+	OFF = 0,
 	RELEASE = 1,
 	PRESS = 2,
 	HOLD = 3
@@ -65,12 +67,14 @@ int currentPaintIndex = 0;
 
 int currMouseX = 0;
 int currMouseY = 0;
+KeyState mouseState;
 
 BitmapData* bgSprites = NULL;
 int bgSpriteCount = 0;
 
 void RenderGradient();
 void WindowsPaintWindow(HWND hwnd);
+void MouseDown(int mouseX, int mouseY);
 
 
 int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
@@ -115,6 +119,8 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 			bgSpriteCount--;
 		}
 	}
+	
+	InitText("C:/Program Files/Java/jdk1.8.0_65/jre/lib/fonts/LucidaSansRegular.ttf", 18);
 
 	bool isRunning = true;
 	while (isRunning) {
@@ -136,7 +142,11 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 		char timeStr[256] = {};
 		snprintf(timeStr, 255, "Time this frame: %3.3f ms\n", deltaTime*1000);
 
-		BitmapData frameBuffer = { bitmapData, bmpInfo.bmiHeader.biWidth, bmpInfo.bmiHeader.biHeight };
+		if(mouseState == HOLD){
+			MouseDown(currMouseX, currMouseY);
+		}
+		
+		BitmapData frameBuffer = { (int*)bitmapData, bmpInfo.bmiHeader.biWidth, bmpInfo.bmiHeader.biHeight };
 		memset(bitmapData, 0, frameBuffer.width*frameBuffer.height * 4);
 
 		float rowCount = (frameBuffer.height - 48) / 16 / zoomLevel;
@@ -200,6 +210,10 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 		
 		//DrawBitmap(frameBuffer, 100, 100, 400, 220, sprite);
 		
+		DrawText(frameBuffer, "The only way.", 500, 200, 200, 60);
+		
+		
+		DrawText(frameBuffer, "Hello to all, and to all BLVCK.", 300, 500, 120, 80);
 
 		WindowsPaintWindow(window);
 		//xOffset++;
@@ -237,7 +251,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 			BitmapData backMapCopy = {};
 			backMapCopy.width = backMap.width;
 			backMapCopy.height = backMap.height;
-			backMapCopy.data = malloc(backMapCopy.width*backMapCopy.height * 4);
+			backMapCopy.data = (int*)malloc(backMapCopy.width*backMapCopy.height * 4);
 
 			for (int i = 0; i < backMapCopy.width * backMapCopy.height; i++) {
 				((int*)backMapCopy.data)[i] = ((int*)backMap.data)[i];// TILE_INDEX_MULTIPLIER;
@@ -359,7 +373,7 @@ LRESULT CALLBACK MyGuiWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 			currMouseY = mouseY;
 
 			if (wParam & MK_LBUTTON) {
-				MouseDown(mouseX, mouseY);
+				mouseState = HOLD;//MouseDown(mouseX, mouseY);
 			}
 		}break;
 
@@ -367,7 +381,18 @@ LRESULT CALLBACK MyGuiWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 		{
 			int mouseX = GET_X_LPARAM(lParam);
 			int mouseY = GET_Y_LPARAM(lParam);
-			MouseDown(mouseX, mouseY);
+			
+			mouseState = HOLD;
+			//MouseDown(mouseX, mouseY);
+		}break;
+		
+		case WM_LBUTTONUP:
+		{
+			//int mouseX = GET_X_LPARAM(lParam);
+			//int mouseY = GET_Y_LPARAM(lParam);
+			
+			mouseState = OFF;
+			//MouseDown(mouseX, mouseY);
 		}break;
 
 		case WM_SYSKEYDOWN:

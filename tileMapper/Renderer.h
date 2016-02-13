@@ -4,7 +4,7 @@
 #pragma once
 
 struct BitmapData{
-	void* data;
+	int* data;
 	int width;
 	int height;
 };
@@ -17,9 +17,12 @@ void DrawBox(BitmapData bitmap, int x, int y, int w, int h, int col);
 
 void DrawBitmap(BitmapData bitmap, int x, int y, int w, int h, BitmapData sprite);
 
-void DrawText(BitmapData bitmap, char* text, int size, int x, int y);
+//If the text goes outside the box, it'll be truncated
+void DrawText(BitmapData bitmap, char* text, int x, int y, int width, int height);
 
 void Render(BitmapData frameBuffer);
+
+void InitText(char* fileName, int size);
 
 BitmapData LoadBMPFile(char* fileName);
 

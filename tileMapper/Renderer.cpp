@@ -49,6 +49,36 @@ typedef struct __attribute((packed))__{
 } BitMapHeader;
 #endif
 
+#define STB_TRUETYPE_IMPLEMENTATION  // force following include to generate implementation
+#include "stb_truetype.h"
+
+unsigned char tempBitmap[512*512];
+BitmapData fontBMP = {};
+
+stbtt_bakedchar fontBakeData[96]; // ASCII 32..126 is 95 glyphs
+
+void InitText(char* fileName, int size){
+	FILE* fontFile = fopen(fileName, "rb");
+	
+	fseek(fontFile, 0, SEEK_END);
+	int fileSize = ftell(fontFile);
+	fseek(fontFile, 0, SEEK_SET);
+	
+	unsigned char* fontFileBuffer = (unsigned char*)malloc(fileSize);
+	fread(fontFileBuffer, 1, fileSize, fontFile);
+	
+	int offsetInFile = stbtt_GetFontOffsetForIndex(fontFileBuffer, 0);
+	stbtt_BakeFontBitmap(fontFileBuffer, offsetInFile, size, tempBitmap, 512, 512, 32, 96, fontBakeData);
+	
+	fontBMP.width = 512;
+	fontBMP.height = 512;
+	fontBMP.data = (int*)malloc(512*512*sizeof(int));
+	for(int i = 0; i < 512*512; i++){
+		int c = tempBitmap[i];
+		fontBMP.data[i] = c | (c << 8) | (c << 16) | (0xFF << 24);
+	}
+}
+
 void DrawBox(BitmapData bitmap, int x, int y, int w, int h, int col) {
 	int x1 = x;
 	int y1 = bitmap.height - y - h;
@@ -98,17 +128,61 @@ void DrawBitmap(BitmapData bitmap, int x, int y, int w, int h, BitmapData sprite
 	}
 }
 
-void DrawText(BitmapData bitmap, char* text, int size, int x, int y) {
+void DrawText(BitmapData bitmap, char* text, int x, int y, int width, int height) {
+	int currX = x;
+	int currY = y;
 	
+	char* currChar = text;
+	while(*currChar){
+		
+		int fontIdx = *currChar - 32;
+		int w = fontBakeData[fontIdx].x1 - fontBakeData[fontIdx].x0; 
+		int h = fontBakeData[fontIdx].y1 - fontBakeData[fontIdx].y0; 
+		int fontStartX = fontBakeData[fontIdx].x0;
+		int fontStartY = fontBakeData[fontIdx].y0;
+		
+		int xAdv = (int)fontBakeData[fontIdx].xadvance;
+		
+		int yOffset = (int)fontBakeData[fontIdx].yoff;
+		
+		for(int j = 0; j < h; j++){
+			for(int i = 0; i < w; i++){
+				int fontX = fontStartX + i;
+				int fontY = (fontStartY + j);
+				int fontIdx = fontX + fontY*fontBMP.width;
+				
+				int bmpX = currX + i;
+				int bmpY = bitmap.height - 1 - (currY + j + yOffset);
+				int bmpIdx = bmpX + bmpY*bitmap.width;
+				
+				int alpha = fontBMP.data[fontIdx] & 0xFF;
+				for(int i = 0; i < 3; i++){
+					int mask = (0x000000FF << i*8);
+					int old = (bitmap.data[bmpIdx] & mask) >> (i*8);
+					old = (old * (255-alpha))/255 + alpha;
+					bitmap.data[bmpIdx] = (bitmap.data[bmpIdx] & ~mask) | (old&0xFF) << (i*8);
+				}
+			}
+		}
+		
+		currX += xAdv;
+		
+		if(currX > bitmap.width || currX > x + width){
+			currX = x;
+			currY += (h - yOffset);
+		}
+		
+		if(currY > bitmap.height - 1 - h || currY > y + height){
+			break;
+		}
+		
+		
+		currChar++;
+	}
 }
 
 void Render(BitmapData frameBuffer) {
-	DrawBox(frameBuffer, 30, 50, 430, 220, RGBA(240, 180, 10, 255));
-	DrawBox(frameBuffer, 40, 100, 50, 30, RGBA(20, 160, 220, 255));
-	DrawBox(frameBuffer, 100, 430, 210, 90, RGBA(20, 80, 70, 255));
-	DrawBox(frameBuffer, 220, 80, 630, 110, RGBA(20, 160, 70, 255));
-	DrawBox(frameBuffer, 240, 230, 430, 70, RGBA(120, 60, 70, 255));
-	DrawBitmap(frameBuffer, 700, 300, 200, 160, frameBuffer);
+
 }
 
 BitmapData LoadBMPFile(char* fileName) {
