@@ -67,7 +67,7 @@ int currentPaintIndex = 0;
 
 int currMouseX = 0;
 int currMouseY = 0;
-KeyState mouseState;
+int mouseState = 0;
 
 BitmapData* bgSprites = NULL;
 int bgSpriteCount = 0;
@@ -142,7 +142,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 		char timeStr[256] = {};
 		snprintf(timeStr, 255, "Time this frame: %3.3f ms\n", deltaTime*1000);
 
-		if(mouseState == HOLD){
+		if(mouseState > 1){
 			MouseDown(currMouseX, currMouseY);
 		}
 		
@@ -150,7 +150,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 		memset(bitmapData, 0, frameBuffer.width*frameBuffer.height * 4);
 
 		float rowCount = (frameBuffer.height - 48) / 16 / zoomLevel;
-		float colCount = frameBuffer.width  / 16 / zoomLevel;
+		float colCount = (frameBuffer.width - 180)  / 16 / zoomLevel;
 
 		int tileSize = (int)(16 * zoomLevel);
 
@@ -181,20 +181,22 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 		
 		int* frameMem = (int*)frameBuffer.data;
 		
-		int xMin = backMapX * tileSize  - xOffset;
-		int xMax = (backMapX+1) * tileSize  - xOffset;
-		int yMin = backMapY * tileSize  - yOffset;
-		int yMax = (backMapY+1) * tileSize  - yOffset;
-		
-		xMin = clamp(xMin, 0, frameBuffer.width - 1);
-		xMax = clamp(xMax, 0, frameBuffer.width - 1);
-		yMin = clamp(yMin, 0, frameBuffer.height - 1);
-		yMax = clamp(yMax, 0, frameBuffer.height - 1);
-		
-		for(int j = yMin; j < yMax; j++){
-			for(int i = xMin; i < xMax; i++){
-				int frameIdx = (frameBuffer.height - j - 1)*frameBuffer.width+i;
-				frameMem[frameIdx] ^= 0xFFFFFF;
+		if(backMapX >= 0 && backMapX < backMap.width && backMapY >= 0 && backMapY < backMap.height){
+			int xMin = backMapX * tileSize  - xOffset;
+			int xMax = (backMapX+1) * tileSize  - xOffset;
+			int yMin = backMapY * tileSize  - yOffset;
+			int yMax = (backMapY+1) * tileSize  - yOffset;
+			
+			xMin = clamp(xMin, 0, frameBuffer.width - 1);
+			xMax = clamp(xMax, 0, frameBuffer.width - 1);
+			yMin = clamp(yMin, 0, frameBuffer.height - 1);
+			yMax = clamp(yMax, 0, frameBuffer.height - 1);
+			
+			for(int j = yMin; j < yMax; j++){
+				for(int i = xMin; i < xMax; i++){
+					int frameIdx = (frameBuffer.height - j - 1)*frameBuffer.width+i;
+					frameMem[frameIdx] ^= 0xFFFFFF;
+				}
 			}
 		}
 
@@ -209,12 +211,29 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 		}
 		
 		//DrawBitmap(frameBuffer, 100, 100, 400, 220, sprite);
+		//DrawText(frameBuffer, "The only way.", 500, 200, 200, 60);		
+		//DrawText(frameBuffer, "Hello to all, and to all BLVCK.", 300, 500, 120, 80);
 		
-		DrawText(frameBuffer, "The only way.", 500, 200, 200, 60);
+		if(currentPaintIndex > 0){
+			
+			int flags = bgAsset.sprites[currentPaintIndex].flags;
+			
+			int index = 0;
+			for(int i = 1; i < MAX_SPRITE_FLAG; i *= 2){
+				
+				char flagText[256] = {};
+				sprintf(flagText, "Flag: %d, val: %s", i,  (flags & i) ? "True" : "False");
+				DrawText(frameBuffer, flagText, frameBuffer.width - 150, 200 + index*30, 150, 30);
+				
+				if(Button(frameBuffer, frameBuffer.width - 150, 200 + index*30, 60, 10, 0x55555555, 0xDDDDDDDD, 0xBBBBBBBB, "")){
+					flags ^= i;
+					bgAsset.sprites[currentPaintIndex].flags = (BGSpriteFlags)flags;
+				}
+				
+				index++;
+			}
+		}
 		
-		
-		DrawText(frameBuffer, "Hello to all, and to all BLVCK.", 300, 500, 120, 80);
-
 		WindowsPaintWindow(window);
 		//xOffset++;
 
@@ -235,10 +254,6 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 		}
 		if (keyStates['Z'] > 1) {
 			zoomLevel *= 1.01f;
-		}
-		
-		if(keyStates['T']  == PRESS){
-			WriteBGAssetFile(bgAsset, backgroundAssetFileName);
 		}
 
 		if (keyStates['F'] == PRESS) {
@@ -262,6 +277,15 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 			WriteBMPFile(bgMapFile, &backMapCopy);
 
 			free(backMapCopy.data);
+			
+			WriteBGAssetFile(bgAsset, backgroundAssetFileName);
+		}
+		
+		if(mouseState = PRESS){
+			mouseState = HOLD;
+		}
+		if(mouseState = RELEASE){
+			mouseState = OFF;
 		}
 
 		zoomLevel = clamp(zoomLevel, 0.25f, 2.0f);
@@ -373,7 +397,7 @@ LRESULT CALLBACK MyGuiWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 			currMouseY = mouseY;
 
 			if (wParam & MK_LBUTTON) {
-				mouseState = HOLD;//MouseDown(mouseX, mouseY);
+				mouseState = HOLD;
 			}
 		}break;
 
@@ -382,8 +406,9 @@ LRESULT CALLBACK MyGuiWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 			int mouseX = GET_X_LPARAM(lParam);
 			int mouseY = GET_Y_LPARAM(lParam);
 			
-			mouseState = HOLD;
-			//MouseDown(mouseX, mouseY);
+			if(mouseState != HOLD){
+				mouseState = PRESS;
+			}
 		}break;
 		
 		case WM_LBUTTONUP:
@@ -391,7 +416,7 @@ LRESULT CALLBACK MyGuiWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 			//int mouseX = GET_X_LPARAM(lParam);
 			//int mouseY = GET_Y_LPARAM(lParam);
 			
-			mouseState = OFF;
+			mouseState = RELEASE;
 			//MouseDown(mouseX, mouseY);
 		}break;
 

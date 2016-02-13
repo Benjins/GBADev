@@ -3,6 +3,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+extern int currMouseX;
+extern int currMouseY;
+extern int mouseState;
+
 #if defined(_MSC_VER)
 
 #pragma pack(1)
@@ -128,12 +132,38 @@ void DrawBitmap(BitmapData bitmap, int x, int y, int w, int h, BitmapData sprite
 	}
 }
 
+bool Button(BitmapData frameBuffer, int x, int y, int w, int h, int offCol, int hoverCol, int pressCol, char* label){
+	int mouseIsOver = 0;
+	if(currMouseX > x && currMouseX < x + w
+	&& currMouseY > y && currMouseY < y + h){
+		mouseIsOver = 1;
+	}
+	
+	int fillCol = offCol;
+	if(mouseIsOver){
+		fillCol = hoverCol;
+		
+		if(mouseState == 3){
+			fillCol = pressCol;
+		}
+	}
+	
+	for(int j = y; j < y + h; j++){
+		for(int i = x; i < x + w; i++){
+			int frameIdx = (frameBuffer.height - 1 - j)*frameBuffer.width+i;
+			frameBuffer.data[frameIdx] = fillCol;
+		}
+	}
+	
+	return mouseIsOver && (mouseState == 1);
+}
+
 void DrawText(BitmapData bitmap, char* text, int x, int y, int width, int height) {
 	int currX = x;
 	int currY = y;
 	
 	char* currChar = text;
-	while(*currChar){
+	while(currChar && *currChar){
 		
 		int fontIdx = *currChar - 32;
 		int w = fontBakeData[fontIdx].x1 - fontBakeData[fontIdx].x0; 

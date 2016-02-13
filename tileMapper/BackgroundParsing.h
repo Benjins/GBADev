@@ -1,7 +1,7 @@
 typedef enum {
 	NONE = 0,
-	WALKABLE = (1 << 1),
-	MAX_SPRITE_FLAG = (1 << 2)
+	WALKABLE = (1 << 0),
+	MAX_SPRITE_FLAG = (1 << 1)
 } BGSpriteFlags;
 
 typedef struct{
