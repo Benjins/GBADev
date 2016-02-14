@@ -76,6 +76,34 @@ void RenderGradient();
 void WindowsPaintWindow(HWND hwnd);
 void MouseDown(int mouseX, int mouseY);
 
+void AddBackgroundSprite(BackgroundAsset* bgAsset, BitmapData** bgSpriteList, int* bgSpriteCount, char* fileName, char* dirName, int dirNameLength){
+	BGSprite* newBGSprites = (BGSprite*)malloc((bgAsset->spriteCount+1)*sizeof(BGSprite));
+	memcpy(newBGSprites, bgAsset->sprites, sizeof(BGSprite)*bgAsset->spriteCount);
+	
+	int fileNameLength = strlen(fileName);
+	char* spriteFileName = (char*)malloc(fileNameLength+1);
+	memcpy(spriteFileName, fileName, fileNameLength);
+	spriteFileName[fileNameLength] = '\0';
+	
+	newBGSprites[bgAsset->spriteCount].fileName = spriteFileName;
+	newBGSprites[bgAsset->spriteCount].flags = NONE;
+	
+	free(bgAsset->sprites);
+	
+	bgAsset->sprites = newBGSprites;
+	bgAsset->spriteCount++;
+	
+	BitmapData* newBGSpriteList = (BitmapData*)malloc((1+*bgSpriteCount)*sizeof(BitmapData));
+	memcpy(newBGSpriteList, *bgSpriteList, sizeof(BitmapData)*(*bgSpriteCount));
+	
+	char fullFileName[256] = {};
+	snprintf(fullFileName, 256, "%.*s\\%s", dirNameLength, dirName, spriteFileName);
+	newBGSpriteList[*bgSpriteCount] = LoadBMPFile(fullFileName);
+	
+	free(*bgSpriteList);
+	*bgSpriteList = newBGSpriteList;
+	(*bgSpriteCount)++;
+}
 
 int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 					 LPSTR cmdLine, int cmdShow) {
@@ -196,7 +224,6 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 				}
 			}
 		}
-
 		
 		int redCol = 0xFFFFFF;
 		BitmapData redBMP = {&redCol, 1, 1};
@@ -231,8 +258,6 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 			}
 		}
 		
-
-		
 #if 0
 		//Useful for debugging issues with flags and tile indices.
 		char debugPaintIndex[256] = {};
@@ -248,6 +273,50 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 		
 		DrawText(frameBuffer, debugFlagString, frameBuffer.width - 180, 450, 150, 80);
 #endif
+
+		DrawText(frameBuffer,  "Load New BMP", frameBuffer.width - 150, frameBuffer.height - 150, 120, 40);
+		
+		if(Button(frameBuffer, frameBuffer.width - 150, frameBuffer.height - 100, 120, 40, 0x55555555, 0xDDDDDDDD, 0xBBBBBBBB, "")){
+			OPENFILENAME spriteFile = {};
+			spriteFile.hInstance = inst;
+			
+			char initialDir[256] = {};
+			GetCurrentDirectory(sizeof(initialDir), initialDir);
+			char usedDir[256] = {};
+			snprintf(usedDir, 256, "%s\\%.*s", initialDir, arg1Length, arg1Str);
+			
+			spriteFile.lpstrInitialDir = usedDir;
+
+			char szFilters[] = "Bitmap Files (*.bmp)\0*.bmp\0\0";
+			char szFilePathName[512] = "";
+
+			spriteFile.lStructSize = sizeof(OPENFILENAME);
+			spriteFile.hwndOwner = window;
+			spriteFile.lpstrFilter = szFilters;
+			spriteFile.lpstrFile = szFilePathName;  // This will hold the file name
+			spriteFile.lpstrDefExt = "bmp";
+			spriteFile.nMaxFile = 512;
+			spriteFile.lpstrTitle = "Open BMP File";
+			spriteFile.Flags = OFN_OVERWRITEPROMPT;
+			if(GetOpenFileName(&spriteFile)){	
+				//The open file dialog defaults to the project directory,
+				//so we reset it to the outer directory
+				SetCurrentDirectory(initialDir);
+				char shortFileName[256] = {};
+				int fullPathLength = strlen(szFilePathName);
+				char* fileNameCursor = szFilePathName + (fullPathLength - 1);
+				for(int i = 0; i < fullPathLength - 1; i++){
+					fileNameCursor--;
+					if(*fileNameCursor == '\\' || *fileNameCursor == '/'){
+						fileNameCursor++;
+						break;
+					}
+				}
+
+				AddBackgroundSprite(&bgAsset, &bgSprites, &bgSpriteCount, fileNameCursor, arg1Str, arg1Length);
+			}
+		}
+
 		
 		WindowsPaintWindow(window);
 		//xOffset++;
@@ -270,7 +339,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 		if (keyStates['Z'] > 1) {
 			zoomLevel *= 1.01f;
 		}
-
+		
 		if (keyStates['F'] == PRESS) {
 			for (int i = 0; i < backMap.width*backMap.height; i++) {
 				((int*)backMap.data)[i] = currentPaintIndex * TILE_INDEX_MULTIPLIER;
