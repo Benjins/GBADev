@@ -232,6 +232,14 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 			}
 		}
 		
+		int startTime = 0;
+		for(int i = 0; i < animAsset.animClips[animClipIndex].keyFrameCount; i++){
+			float startPixels = ((float)startTime)/animLengthInSeconds * timelinePixelWidth;
+			DrawBitmap(frameBuffer, startPixels, frameBuffer.height - 150, 50, 50, animAsset.animClips[animClipIndex].keyFrames[i].spriteData);
+			
+			startTime += animAsset.animClips[animClipIndex].keyFrames[i].duration;
+		}
+		
 		DrawBitmap(frameBuffer, 80, 80, 450, 450, animAsset.animClips[animClipIndex].keyFrames[currKeyFrame].spriteData);
 		
 		WindowsPaintWindow(window);
