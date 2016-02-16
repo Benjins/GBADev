@@ -1,1 +1,1 @@
-backMap:shortMap-Copy.bmp:bg1.bmp;0,bg2.bmp;0,bg3.bmp;0,a.bmp;0,b.bmp;0,c.bmp;0,d.bmp;0,grass.bmp;1,grass_flower.bmp;1,road.bmp;1,road_2.bmp;1,road_3.bmp;1,road_4.bmp;1,road_5.bmp;1,road_6.bmp;1,tree1_high.bmp;0,tree1_low.bmp;0,grass_flower2.bmp;0
+backMap:shortMap-Copy.bmp:bg1.bmp;0,bg2.bmp;0,bg3.bmp;0,a.bmp;0,b.bmp;0,c.bmp;0,d.bmp;0,grass.bmp;1,grass_flower.bmp;1,road.bmp;1,road_2.bmp;1,road_3.bmp;1,road_4.bmp;1,road_5.bmp;1,road_6.bmp;1,tree1_high.bmp;0,tree1_low.bmp;0,grass_flower2.bmp;1

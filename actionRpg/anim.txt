@@ -1,0 +1,2 @@
+simple_anim:frame1.bmp;60,frame2.bmp;60,frame3.bmp;60
+simple_anim_rev:frame3.bmp;60,frame2.bmp;50,frame1.bmp;40

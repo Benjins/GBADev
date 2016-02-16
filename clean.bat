@@ -2,6 +2,7 @@
 
 echo Removing object files.
 del *.o
+del *.obj
 
 echo Removing linker files.
 del *.elf

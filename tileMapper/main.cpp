@@ -298,10 +298,12 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 			spriteFile.nMaxFile = 512;
 			spriteFile.lpstrTitle = "Open BMP File";
 			spriteFile.Flags = OFN_OVERWRITEPROMPT;
+			
 			if(GetOpenFileName(&spriteFile)){	
-				//The open file dialog defaults to the project directory,
+				//The open file dialog sets the current directory to the project directory,
 				//so we reset it to the outer directory
 				SetCurrentDirectory(initialDir);
+				
 				char shortFileName[256] = {};
 				int fullPathLength = strlen(szFilePathName);
 				char* fileNameCursor = szFilePathName + (fullPathLength - 1);
