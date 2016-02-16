@@ -182,6 +182,14 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 		BitmapData frameBuffer = { (int*)bitmapData, bmpInfo.bmiHeader.biWidth, bmpInfo.bmiHeader.biHeight };
 		memset(bitmapData, 0, frameBuffer.width*frameBuffer.height * 4);
 
+		for(int i = 0; i < animAsset.animClipCount; i++){
+			DrawText(frameBuffer, animAsset.animClips[i].name, frameBuffer.width - 180, 100*i+40, 150, 40);
+			if(Button(frameBuffer, frameBuffer.width - 180, 100*i+90, 50, 30, 0x777777, 0xEEEEEE, 0xDDDDDD, "")){
+				animClipIndex = i;
+				animTime = 0;
+			}
+		}
+		
 		DrawBox(frameBuffer, 20, frameBuffer.height - 40, frameBuffer.width - 220, 30, white);
 		
 		int frameLength = 0;
@@ -234,7 +242,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 		
 		int startTime = 0;
 		for(int i = 0; i < animAsset.animClips[animClipIndex].keyFrameCount; i++){
-			float startPixels = ((float)startTime)/animLengthInSeconds * timelinePixelWidth;
+			float startPixels = ((float)startTime)/60/animLengthInSeconds * timelinePixelWidth;
 			DrawBitmap(frameBuffer, startPixels, frameBuffer.height - 150, 50, 50, animAsset.animClips[animClipIndex].keyFrames[i].spriteData);
 			
 			startTime += animAsset.animClips[animClipIndex].keyFrames[i].duration;
