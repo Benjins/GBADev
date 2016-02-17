@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #undef DrawText
 
@@ -69,46 +70,56 @@ void RenderGradient();
 void WindowsPaintWindow(HWND hwnd);
 void MouseDown(int mouseX, int mouseY);
 
-typedef struct{
-	char* fileName;
-	BitmapData spriteData;
-	int duration;
-} AnimKeyFrame;
+#include "AnimAsset.h"
 
-typedef struct{
-	char* name;
-	AnimKeyFrame* keyFrames;
-	int keyFrameCount;
-} AnimClip;
-
-typedef struct{
-	AnimClip* animClips;
-	int animClipCount;
-} AnimAsset;
-
-void AddAnimClip(AnimAsset* asset, AnimClip clip){
-	AnimClip* newAnimClips = (AnimClip*)malloc(sizeof(AnimClip)*(asset->animClipCount+1));
-	memcpy(newAnimClips, asset->animClips, asset->animClipCount*sizeof(AnimClip));
-	newAnimClips[asset->animClipCount] = clip;
+bool OpenFile(char* fileName, HWND owner, char* fileFilter, char* filterTitle, char* dirName, int dirLength){
+	OPENFILENAME spriteFile = {};
 	
-	free(asset->animClips);
-	asset->animClips = newAnimClips;
-	asset->animClipCount++;
-}
-
-void AddKeyFrame(AnimClip* clip, AnimKeyFrame keyFrame){
-	AnimKeyFrame* newKeyFrames = (AnimKeyFrame*)malloc(sizeof(AnimKeyFrame)*(clip->keyFrameCount+1));
-	memcpy(newKeyFrames, clip->keyFrames, clip->keyFrameCount*sizeof(AnimKeyFrame));
-	newKeyFrames[clip->keyFrameCount] = keyFrame;
+	char initialDir[256] = {};
+	GetCurrentDirectory(sizeof(initialDir), initialDir);
+	char usedDir[256] = {};
+	snprintf(usedDir, 256, "%s\\%.*s", initialDir, dirLength, dirName);
 	
-	free(clip->keyFrames);
-	clip->keyFrames = newKeyFrames;
-	clip->keyFrameCount++;
+	spriteFile.lpstrInitialDir = usedDir;
+
+	char szFilters[256] = {};
+	sprintf(szFilters, "%s (*.%s)\0*.%s\0\0", filterTitle, fileFilter, fileFilter);
+	char szFilePathName[512] = "";
+
+	spriteFile.lStructSize = sizeof(OPENFILENAME);
+	spriteFile.hwndOwner = owner;
+	spriteFile.lpstrFilter = szFilters;
+	spriteFile.lpstrFile = szFilePathName;  // This will hold the file name
+	spriteFile.lpstrDefExt = "bmp";
+	spriteFile.nMaxFile = 512;
+	spriteFile.lpstrTitle = "Open BMP File";
+	spriteFile.Flags = OFN_OVERWRITEPROMPT;
+	
+	if(GetOpenFileName(&spriteFile)){	
+		//The open file dialog sets the current directory to the project directory,
+		//so we reset it to the outer directory
+		SetCurrentDirectory(initialDir);
+		
+		char shortFileName[256] = {};
+		int fullPathLength = strlen(szFilePathName);
+		char* fileNameCursor = szFilePathName + (fullPathLength - 1);
+		for(int i = 0; i < fullPathLength - 1; i++){
+			fileNameCursor--;
+			if(*fileNameCursor == '\\' || *fileNameCursor == '/'){
+				fileNameCursor++;
+				break;
+			}
+		}
+		
+		int fileNameLength = strlen(fileNameCursor);
+		memcpy(fileName, fileNameCursor, fileNameLength);
+		fileName[fileNameLength] = '\0';
+		
+		return true;
+	}
+	
+	return false;
 }
-
-void ReadAnimAssetFile(AnimAsset* asset, char* fileName, char* dirName, int dirLength);
-
-void SaveAnimAssetFile(AnimAsset* asset, char* fileName);
 
 int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 					 LPSTR cmdLine, int cmdShow) {
@@ -144,6 +155,43 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 	
 	int white = 0xFFFFFFFF;
 	BitmapData whiteCol = {&white, 1, 1};
+	
+	int circleData[256] = {};
+	BitmapData cyanCircle = {circleData, 16, 16};
+	
+	int plusData[256] = {};
+	for(int i = 0; i < 16; i++){
+		plusData[64+i] = 0xFFFFFF;
+		plusData[i*8+4] = 0xFFFFFF;
+	}
+	
+	BitmapData plusSign = {plusData, 16, 16};
+	
+	int crossData[256] = {};
+	for(int i = 0; i < 16; i++){
+		crossData[17*i] = 0xEE2222;
+		crossData[16*i+16-i] = 0xEE2222;
+	}
+	
+	BitmapData crossSign = {crossData, 16, 16};
+	
+	for(int j = 0; j < 16; j++){
+		float rSqr = 64;
+		float heightSqr = (8 - j)*(8 - j);
+		float width = sqrt(rSqr - heightSqr);
+		for(int i = 0; i < 16; i++){
+			int idx = j*16+i;
+			
+			if(abs(8 - i) < (int)width){
+				circleData[idx] = 0xFFFFFF;
+			}
+			else if(abs(8 - i) < width){
+				float widthFrac = width - (int)width;
+				unsigned char amt = (unsigned char)(width * 255);
+				circleData[idx] = amt | (amt << 8) | (amt << 16);
+			}
+		}
+	}
 	
 	bool isRunning = true;
 	while (isRunning) {
@@ -181,10 +229,10 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 		
 		BitmapData frameBuffer = { (int*)bitmapData, bmpInfo.bmiHeader.biWidth, bmpInfo.bmiHeader.biHeight };
 		memset(bitmapData, 0, frameBuffer.width*frameBuffer.height * 4);
-
+		
 		for(int i = 0; i < animAsset.animClipCount; i++){
 			DrawText(frameBuffer, animAsset.animClips[i].name, frameBuffer.width - 180, 100*i+40, 150, 40);
-			if(Button(frameBuffer, frameBuffer.width - 180, 100*i+90, 50, 30, 0x777777, 0xEEEEEE, 0xDDDDDD, "")){
+			if(Button(frameBuffer, frameBuffer.width - 180, 100*i+50, 50, 30, 0x777777, 0xEEEEEE, 0xDDDDDD, "")){
 				animClipIndex = i;
 				animTime = 0;
 			}
@@ -215,7 +263,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 		int animTickX = (animTime/animLengthInSeconds)*timelinePixelWidth;
 		DrawBox(frameBuffer, animTickX, frameBuffer.height - 90, 20, 80, 0xFF7777FF);
 		
-		DrawText(frameBuffer, (isPlaying ? "Pause" : "Play"), frameBuffer.width - 180, frameBuffer.height - 120, 150, 40);
+		DrawText(frameBuffer, (isPlaying ? "Pause" : "Play"), frameBuffer.width - 180, frameBuffer.height - 90, 150, 40);
 		if(Button(frameBuffer, frameBuffer.width - 180, frameBuffer.height - 80, 100, 50, 0x777777, 0xEEEEEE, 0xDDDDDD, "")){
 			isPlaying = !isPlaying;
 		}
@@ -226,8 +274,81 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 			
 			animTime = clamp(projectedAnimTime, 0.0f, animLengthInSeconds);
 		}
+		else if(mouseState == HOLD && currMouseY < frameBuffer.height - 150 
+				&& currMouseY > frameBuffer.height - 200){
+			int frameLength = 0;
+			for(int i = 0; i < animAsset.animClips[animClipIndex].keyFrameCount; i++){	
+				float pixelX = (float(frameLength))/60 / animLengthInSeconds *  timelinePixelWidth;
+				if(currMouseX > pixelX && currMouseX < pixelX + 50){
+					float pixelOffset = pixelX + 25 - currMouseX;
+					float frameOffset = pixelOffset / timelinePixelWidth * animLengthInSeconds * 60;
+					
+					int offsetInt = (frameOffset < 0 ? -1 : 1) * (int)((frameOffset < 0 ? -frameOffset : frameOffset));
+
+					if(i != 0){
+						animAsset.animClips[animClipIndex].keyFrames[i-1].duration -= offsetInt;
+						if (i != animAsset.animClips[animClipIndex].keyFrameCount - 1) {
+							animAsset.animClips[animClipIndex].keyFrames[i].duration += offsetInt;
+						}
+					}
+					
+					break;
+				}
+
+				frameLength += animAsset.animClips[animClipIndex].keyFrames[i].duration;
+			}
+		}
+		else if(mouseState == RELEASE && currMouseY < frameBuffer.height - 100 
+									  && currMouseY > frameBuffer.height - 150){
+			
+			int startTime = 0;
+			for(int i = 0; i < animAsset.animClips[animClipIndex].keyFrameCount; i++){
+				float pixelX = ((float)startTime)/60/animLengthInSeconds * timelinePixelWidth;
+				
+				if(currMouseX > pixelX && currMouseX < pixelX + 50){
+					
+					char fileName[256] = {};
+					if(OpenFile(fileName, window, "bmp", "Bitmap Files", arg1Str, arg1Length)){
+						free(animAsset.animClips[animClipIndex].keyFrames[i].spriteData.data);
+						free(animAsset.animClips[animClipIndex].keyFrames[i].fileName);
+						
+						int newFileNameLength = strlen(fileName);
+						char* newFileName = (char*)malloc(newFileNameLength+1);
+						memcpy(newFileName, fileName, newFileNameLength);
+						newFileName[newFileNameLength] = '\0';
+						
+						animAsset.animClips[animClipIndex].keyFrames[i].fileName = newFileName;
+						
+						char fullNewFileName[256] = {};
+						sprintf(fullNewFileName, "%.*s/%s", arg1Length, arg1Str, newFileName);
+						animAsset.animClips[animClipIndex].keyFrames[i].spriteData = LoadBMPFile(fullNewFileName);
+					}
+				}
+				
+				
+				startTime += animAsset.animClips[animClipIndex].keyFrames[i].duration;
+			}
+		}
 		
 		int currentFrames = (int)(animTime*60);
+		
+		if(Button(frameBuffer, frameBuffer.width - 150, frameBuffer.height - 250, 100, 50, 0x777777, 0xEEEEEE, 0xDDDDDD, "")){
+			char fileName[256] = {};
+			if(OpenFile(fileName, window, "bmp", "Bitmap Files", arg1Str, arg1Length)){
+				int newFileNameLength = strlen(fileName);
+				char* newFileName = (char*)malloc(newFileNameLength+1);
+				memcpy(newFileName, fileName, newFileNameLength);
+				newFileName[newFileNameLength] = '\0';
+				
+				char fullNewFileName[256] = {};
+				sprintf(fullNewFileName, "%.*s/%s", arg1Length, arg1Str, newFileName);
+				
+				AnimKeyFrame newKeyFrame = {newFileName, LoadBMPFile(fullNewFileName), 20};
+				
+				AddKeyFrame(&animAsset.animClips[animClipIndex], newKeyFrame);
+			}
+		}
+		DrawBitmap(frameBuffer, frameBuffer.width - 149, frameBuffer.height - 299, 48, 48, plusSign);
 		
 		int frames = 0;
 		int currKeyFrame = 0;
@@ -243,12 +364,20 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 		int startTime = 0;
 		for(int i = 0; i < animAsset.animClips[animClipIndex].keyFrameCount; i++){
 			float startPixels = ((float)startTime)/60/animLengthInSeconds * timelinePixelWidth;
-			DrawBitmap(frameBuffer, startPixels, frameBuffer.height - 150, 50, 50, animAsset.animClips[animClipIndex].keyFrames[i].spriteData);
+			DrawBitmap(frameBuffer, (int)startPixels, frameBuffer.height - 200, 50, 50, cyanCircle);
+			DrawBitmap(frameBuffer, (int)startPixels, frameBuffer.height - 150, 50, 50, animAsset.animClips[animClipIndex].keyFrames[i].spriteData);
 			
-			startTime += animAsset.animClips[animClipIndex].keyFrames[i].duration;
+			int duration = animAsset.animClips[animClipIndex].keyFrames[i].duration;
+			
+			if(Button(frameBuffer, (int)startPixels, frameBuffer.height - 250, 30, 30, 0x777777, 0xEEEEEE, 0xDDDDDD, "")){
+				RemoveAnimKeyFrame(&animAsset.animClips[animClipIndex], i);
+			}
+			DrawBitmap(frameBuffer, startPixels, frameBuffer.height - 250, 30, 30, crossSign);
+			
+			startTime += duration;
 		}
 		
-		DrawBitmap(frameBuffer, 80, 80, 450, 450, animAsset.animClips[animClipIndex].keyFrames[currKeyFrame].spriteData);
+		DrawBitmap(frameBuffer, 50, 50, 350, 350, animAsset.animClips[animClipIndex].keyFrames[currKeyFrame].spriteData);
 		
 		WindowsPaintWindow(window);
 		
@@ -272,111 +401,6 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 	}
 
 	return 0;
-}
-
-void ReadAnimAssetFile(AnimAsset* asset, char* fileName, char* dirName, int dirLength){
-	char fullFileName[256] = {};
-	sprintf(fullFileName, "%.*s/%s", dirLength, dirName, fileName);
-	
-	FILE* animAssetFile = fopen(fullFileName, "rb");
-	
-	fseek(animAssetFile, 0, SEEK_END);
-	int fileSize = ftell(animAssetFile);
-	fseek(animAssetFile, 0, SEEK_SET);
-	
-	char* fileBuffer = (char*)malloc(fileSize+1);
-	fread(fileBuffer, 1, fileSize, animAssetFile);
-	fileBuffer[fileSize] = '\0';
-	
-	fclose(animAssetFile);
-	
-	char* fileCursor = fileBuffer;
-	while(fileCursor != NULL && fileCursor - fileBuffer < fileSize){
-		fileCursor += strspn(fileCursor, " \n\r\t");
-		
-		AnimClip animClip = {};
-		
-		char* varNameStart = fileCursor;
-		fileCursor += strcspn(fileCursor, ": \n\r\t");
-		char* varNameEnd = fileCursor;
-		
-		int varNameLength = varNameEnd - varNameStart;
-		char* varName = (char*)malloc(varNameLength + 1);
-		memcpy(varName, varNameStart, varNameLength);
-		varName[varNameLength] = '\0';
-		
-		animClip.name = varName;
-		
-		fileCursor += strspn(fileCursor, ": \n\r\t");
-		
-		char* nextNewLine = strstr(fileCursor, "\n");
-		if(nextNewLine == NULL){
-			nextNewLine = &fileBuffer[fileSize];
-		}
-		
-		while(fileCursor != NULL && fileCursor < nextNewLine){
-			fileCursor += strspn(fileCursor, ": \t");
-			char* fileNameStart = fileCursor;
-			fileCursor += strcspn(fileCursor, " ;\t\n\r");
-			char* fileNameEnd = fileCursor;
-			
-			fileCursor += strspn(fileCursor, " ;\t");
-			
-			char* keyLengthStart = fileCursor;
-			
-			fileCursor += strcspn(fileCursor, " ,;\t\n\r");
-			char* keyLengthEnd = fileCursor;
-
-			fileCursor++;
-			
-			if(keyLengthStart != keyLengthEnd){
-				AnimKeyFrame keyFrame;
-				
-				int spriteFileNameLength = fileNameEnd - fileNameStart;
-				char* spriteFileName = (char*)malloc(spriteFileNameLength+1);
-				memcpy(spriteFileName, fileNameStart, spriteFileNameLength);
-				spriteFileName[spriteFileNameLength] = '\0';
-				
-				keyFrame.fileName = spriteFileName;
-				keyFrame.duration = atoi(keyLengthStart);
-				
-				char spriteFullFileName[256] = {};
-				sprintf(spriteFullFileName, "%.*s/%s", dirLength, dirName, spriteFileName);
-				keyFrame.spriteData = LoadBMPFile(spriteFullFileName);
-				
-				if(keyFrame.spriteData.data == NULL){
-					free(spriteFileName);
-				}
-				else{
-					AddKeyFrame(&animClip, keyFrame);
-				}
-			}
-			else{
-				break;
-			}
-		}
-		
-		AddAnimClip(asset, animClip);
-		
-		fileCursor += strspn(fileCursor, " \n\r\t");
-	}
-	
-	free(fileBuffer);
-}
-
-void SaveAnimAssetFile(AnimAsset* asset, char* fileName){
-	FILE* animAssetFile = fopen(fileName, "wb");
-	
-	for(int i = 0; i < asset->animClipCount; i++){
-		fprintf(animAssetFile, "%s:", asset->animClips[i].name);
-		for(int j = 0; j < asset->animClips[i].keyFrameCount; j++){
-			fprintf(animAssetFile, "%s%s;%d", (j == 0 ? "" : ","), 
-					asset->animClips[i].keyFrames[j].fileName, 
-					asset->animClips[i].keyFrames[j].duration);
-		}
-		
-		fprintf(animAssetFile, "\n");
-	}
 }
 
 void ResizeWindow(int w, int h) {

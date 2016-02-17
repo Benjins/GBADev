@@ -118,9 +118,9 @@ void DrawBitmap(BitmapData bitmap, int x, int y, int w, int h, BitmapData sprite
 	int* spritePixels = (int*)sprite.data;
 
 	float heightRatio = 0.0f;
-	for (int j = y1; j < y2; j++, heightRatio += 1.0f/(w)) {
+	for (int j = y1; j < y2; j++, heightRatio += 1.0f/(h)) {
 		float widthRatio = 0.0f;
-		for (int i = x1; i < x2; i++, widthRatio += 1.0f/(h)) {
+		for (int i = x1; i < x2; i++, widthRatio += 1.0f/(w)) {
 			int idx = j*bitmap.width + i;
 
 			int spriteX = widthRatio * sprite.width;
