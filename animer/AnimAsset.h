@@ -55,9 +55,6 @@ void NoramlizeAnimClip(AnimClip* clip){
 			AnimKeyFrame temp = clip->keyFrames[i];
 			clip->keyFrames[i] = clip->keyFrames[i-1];
 			clip->keyFrames[i-1] = temp;
-			
-			clip->keyFrames[i-2].duration = clip->keyFrames[i-2].duration + clip->keyFrames[i-1].duration;
-			clip->keyFrames[i-1].duration *= -1;
 		}
 	}
 }
