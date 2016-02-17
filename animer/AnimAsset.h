@@ -48,6 +48,20 @@ void AddKeyFrame(AnimClip* clip, AnimKeyFrame keyFrame){
 	clip->keyFrameCount++;
 }
 
+void NoramlizeAnimClip(AnimClip* clip){
+	//Skip the first two, its duration should never be negative and it messes up the logic
+	for(int i = 2; i < clip->keyFrameCount; i++){
+		if(clip->keyFrames[i].duration < 0){
+			AnimKeyFrame temp = clip->keyFrames[i];
+			clip->keyFrames[i] = clip->keyFrames[i-1];
+			clip->keyFrames[i-1] = temp;
+			
+			clip->keyFrames[i-2].duration = clip->keyFrames[i-2].duration + clip->keyFrames[i-1].duration;
+			clip->keyFrames[i-1].duration *= -1;
+		}
+	}
+}
+
 void ReadAnimAssetFile(AnimAsset* asset, char* fileName, char* dirName, int dirLength){
 	char fullFileName[256] = {};
 	sprintf(fullFileName, "%.*s/%s", dirLength, dirName, fileName);

@@ -29,3 +29,9 @@ TODO:
  * Make tileMapper support multiple backgrounds
  * Make level editor for topDown
  * Some kind of debugging method
+ * Animation tool:
+   - Normalize/canonicalize animations, prevent negative key durations
+   - Button to add new animations
+   - Way to rename them?
+ * Export header from animations file
+ * Keep track of sprites exported in asset.h, prevent dupes

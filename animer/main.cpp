@@ -377,6 +377,8 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 			startTime += duration;
 		}
 		
+		NoramlizeAnimClip(&animAsset.animClips[animClipIndex]);
+		
 		DrawBitmap(frameBuffer, 50, 50, 350, 350, animAsset.animClips[animClipIndex].keyFrames[currKeyFrame].spriteData);
 		
 		WindowsPaintWindow(window);
