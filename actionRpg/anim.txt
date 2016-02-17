@@ -1,2 +1,2 @@
-simple_anim:frame1.bmp;34,d.bmp;-7,c.bmp;20
+simple_anim:frame1.bmp;24,d.bmp;35,grass_flower.bmp;10,c.bmp;15,e.bmp;20
 simple_anim_rev:frame3.bmp;60,frame2.bmp;50,frame1.bmp;40,d.bmp;20,e.bmp;20,bg2.bmp;20,bg3.bmp;20,bg1.bmp;20

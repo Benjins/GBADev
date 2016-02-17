@@ -50,11 +50,15 @@ void AddKeyFrame(AnimClip* clip, AnimKeyFrame keyFrame){
 
 void NoramlizeAnimClip(AnimClip* clip){
 	//Skip the first two, its duration should never be negative and it messes up the logic
-	for(int i = 2; i < clip->keyFrameCount; i++){
+	for(int i = 1; i < clip->keyFrameCount - 1; i++){
 		if(clip->keyFrames[i].duration < 0){
+			clip->keyFrames[i-1].duration = clip->keyFrames[i].duration + clip->keyFrames[i-1].duration;
+			clip->keyFrames[i+1].duration   = clip->keyFrames[i].duration + clip->keyFrames[i+1].duration;
+			clip->keyFrames[i].duration *= -1;
+			
 			AnimKeyFrame temp = clip->keyFrames[i];
-			clip->keyFrames[i] = clip->keyFrames[i-1];
-			clip->keyFrames[i-1] = temp;
+			clip->keyFrames[i] = clip->keyFrames[i+1];
+			clip->keyFrames[i+1] = temp;
 		}
 	}
 }
