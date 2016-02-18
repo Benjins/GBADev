@@ -1,2 +1,3 @@
-simple_anim:frame1.bmp;24,d.bmp;35,grass_flower.bmp;10,c.bmp;15,e.bmp;20
+simple_anim:a.bmp;20,b.bmp;20,c.bmp;20,d.bmp;20,e.bmp;20,f.bmp;20,g.bmp;20,h.bmp;20,i.bmp;20,j.bmp;20,k.bmp;20,l.bmp;20,m.bmp;20,n.bmp;20
 simple_anim_rev:frame3.bmp;60,frame2.bmp;50,frame1.bmp;40,d.bmp;20,e.bmp;20,bg2.bmp;20,bg3.bmp;20,bg1.bmp;20
+monster_anim:monster.bmp;27,monster2.bmp;20

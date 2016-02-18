@@ -293,8 +293,8 @@ int main(void) {
 	
 	volatile uint16* player_health_memory = (uint16 *)tile_memory[4][12];
 	
-	volatile uint16* monster_tile_memory = (uint16 *)tile_memory[4][13];
-	set_sprite_memory(monsterSprite, monster_tile_memory);
+	//volatile uint16* monster_tile_memory = (uint16 *)tile_memory[4][13];
+	//set_sprite_memory(monsterSprite, monster_tile_memory);
 	
 	for(int i = 0; i < ARRAY_LENGTH(font); i++){
 		volatile uint16* uiFontMemory = (uint16 *)tile_memory[4][14+i];
@@ -374,7 +374,10 @@ int main(void) {
 		set_sprite_memory(backMap.bgSprites[i], bg0_tile_mem);
 	}
 	
-	AddAnimation(&anims, simple_anim, (volatile uint16*)tile_memory[0][9], &timers);
+	volatile uint16* monster_tile_memory = (uint16 *)tile_memory[4][13];
+	
+	//AddAnimation(&anims, simple_anim, (volatile uint16*)tile_memory[0][9], &timers);
+	AddAnimation(&anims, monster_anim, monster_tile_memory, &timers);
 	
 	volatile uint16* screenmap0Start = &scr_blk_mem[24][0];
 	
