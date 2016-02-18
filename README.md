@@ -21,7 +21,6 @@ The code will compile as is.  However, any changes to art assets will require ru
  * Each line of the file indicates an asset, which is converted from art source to game data
  * The game data is output as a header with the same name as the text file (assets.h, sounds.h, midi.h, etc).  This is included in the project's main.c
 
- 
 The tileMapper program is Windows-specific, and will not run on Mac/Linux without heavy modification.
 
 TODO:
