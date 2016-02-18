@@ -86,7 +86,9 @@ typedef struct{
 } BitmapData;
 
 BitmapData LoadBMPFile(char* fileName) {
-	BitmapData dat = {0x01, 0 ,0};
+	//So if it's null, we'll skip it
+	//We're not using it, so just make it not-null but useless
+	BitmapData dat = {(int*)0x01, 0 ,0};
 	return dat;
 }
 
@@ -268,8 +270,6 @@ int main(int argc, char** argv){
 	
 	fclose(assetsHeaderFile);
 	free(assetFileContents);
-
-	printf("Done packing assets for '%s'\n", argv[1]);
 	
 	return 0;
 }
@@ -312,7 +312,7 @@ void WriteBackground(char* folderName, Token varName, Token fileName, FILE* asse
 	int width = header.imageWidth;
 	int height = header.imageHeight;
 	
-	printf("width: %d, height: %d\n", width, height);
+	//printf("width: %d, height: %d\n", width, height);
 
 	int* pixelData = (int*)malloc(width*height*sizeof(int));
 	
