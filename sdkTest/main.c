@@ -1,8 +1,4 @@
-#include <gba_console.h>
-#include <gba_video.h>
 #include <gba_interrupt.h>
-#include <gba_systemcalls.h>
-#include <gba_input.h>
 
 typedef unsigned char uint8;
 typedef unsigned short uint16;
@@ -225,7 +221,7 @@ void PopText(){
 	}
 }
 
-void PushText(char* text, int x, int y){
+void PushText(const char* text, int x, int y){
 	static const int caseMask = 'a' ^ 'A';
 	
 	textIndices[textIndexCount] = letterCount;
@@ -233,7 +229,7 @@ void PushText(char* text, int x, int y){
 	
 	int index = letterCount;
 	int position=0;
-	for(char* cursor = text; *cursor != '\0'; cursor++){
+	for(const char* cursor = text; *cursor != '\0'; cursor++){
 		if(*cursor == ' '){
 			position++;
 			continue;
@@ -377,7 +373,7 @@ typedef enum {
 } MenuAction;
 
 typedef struct{
-	char* label;
+	const char* label;
 	MenuAction action;
 } MenuItem ;
 
@@ -431,23 +427,19 @@ int main(void) {
 	irqEnable(IRQ_VBLANK);
 	
 	volatile uint16* empty_tile_memory = (uint16 *)tile_memory[4][0];
-	for (int i = 0; i < (sizeof(tile4bpp) / 2) * 4; ++i) { empty_tile_memory[i] = 0x0000; }
+	for (int i = 0; i < (sizeof(tile4bpp) / 2) * 4; ++i) { empty_tile_memory[i] = 0; }
 	
 	volatile uint16* paddle_tile_memory = (uint16 *)tile_memory[4][1];
 	set_sprite_memory(platformSprite, paddle_tile_memory);
-	//for (int i = 0; i < (sizeof(tile4bpp) / 2) * 4; ++i) { paddle_tile_memory[i] = 0x1111; }
 	
 	volatile uint16* ball_player_memory = (uint16 *)tile_memory[4][5];
 	set_sprite_memory(ballSprite, ball_player_memory);
-	//for (int i = 0; i < (sizeof(tile4bpp) / 2); ++i) { ball_player_memory[i] = 0x2222; }
 	
 	volatile uint16* enemy_memory = (uint16 *)tile_memory[4][6];
 	set_sprite_memory(enemySprite, enemy_memory);
-	//for (int i = 0; i < (sizeof(tile4bpp) / 2); ++i) { enemy_memory[i] = 0x3333; }
 	
 	volatile uint16* bullet_memory = (uint16 *)tile_memory[4][7];
 	set_sprite_memory(bulletSprite, bullet_memory);
-	//for (int i = 0; i < (sizeof(tile4bpp) / 2); ++i) { bullet_memory[i] = 0x4554; }
 	
 	volatile uint16* goal_memory = (uint16 *)tile_memory[4][8];
 	set_sprite_memory(goalSprite, goal_memory);
@@ -532,7 +524,7 @@ int main(void) {
 	int menuIdx = 0;
 	
 	while (1) {
-		VBlankIntrWait();
+		asm("swi 0x05");
 		
 		key_states = ~REG_KEY_INPUT & KEY_ANY;
 		
