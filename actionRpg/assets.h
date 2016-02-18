@@ -227,5 +227,89 @@ backMap_bg17,
 int backMap_flags[] = {
 0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,1,};
 Background backMap = {backMap_map, backMap_bgs, backMap_flags, 18};
-rgb15 paletteColors[] = {
+typedef struct{Sprite* sprite; int duration;} AnimKey;
+typedef struct{AnimKey* keys; int keyCount;} SpriteAnim;
+static unsigned short simple_anim_key0_sprite_data[] = {
+0,0,0,0,0,0,0,0,0,0,9,9,0,9,9,0,0,0,0,9,0,9,0,0,0,0,0,9,9,9,0,0,0,0,0,9,9,9,0,0,0,0,9,9,9,9,9,0,0,0,9,9,9,9,9,0,0,0,0,0,0,0,0,0,};
+static Sprite simple_anim_key0_sprite = {0, 8, 8, simple_anim_key0_sprite_data
+};
+AnimKey simple_anim_key0 = {&simple_anim_key0_sprite, 24};
+static unsigned short simple_anim_key1_sprite_data[] = {
+0,0,1,1,0,0,0,0,0,1,0,1,1,0,0,0,0,1,0,0,1,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,1,1,0,0,0,1,0,1,1,0,0,0,0,1,1,1,0,0,0,0,};
+static Sprite simple_anim_key1_sprite = {0, 8, 8, simple_anim_key1_sprite_data
+};
+AnimKey simple_anim_key1 = {&simple_anim_key1_sprite, 35};
+static unsigned short simple_anim_key2_sprite_data[] = {
+12,12,9,9,9,9,9,12,9,9,9,5,9,9,9,9,9,9,5,13,5,12,12,12,9,9,9,5,12,9,12,9,9,12,9,9,9,9,12,12,9,12,12,9,9,9,9,9,9,12,12,12,9,12,12,12,9,9,9,9,9,9,9,12,};
+static Sprite simple_anim_key2_sprite = {0, 8, 8, simple_anim_key2_sprite_data
+};
+AnimKey simple_anim_key2 = {&simple_anim_key2_sprite, 10};
+static unsigned short simple_anim_key3_sprite_data[] = {
+0,0,1,1,1,1,0,0,0,1,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,1,1,1,1,0,0,};
+static Sprite simple_anim_key3_sprite = {0, 8, 8, simple_anim_key3_sprite_data
+};
+AnimKey simple_anim_key3 = {&simple_anim_key3_sprite, 15};
+static unsigned short simple_anim_key4_sprite_data[] = {
+0,1,1,1,1,1,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,1,1,1,1,0,0,};
+static Sprite simple_anim_key4_sprite = {0, 8, 8, simple_anim_key4_sprite_data
+};
+AnimKey simple_anim_key4 = {&simple_anim_key4_sprite, 20};
+AnimKey simple_anim_keys[] = {
+simple_anim_key0,
+simple_anim_key1,
+simple_anim_key2,
+simple_anim_key3,
+simple_anim_key4,
+};
+SpriteAnim simple_anim = { simple_anim_keys, 5 };static unsigned short simple_anim_rev_key0_sprite_data[] = {
+0,0,0,0,0,0,0,0,0,9,9,0,0,0,9,9,0,0,9,9,0,9,9,0,0,0,0,9,9,9,0,0,0,0,0,9,9,9,0,0,0,0,9,9,9,9,9,0,0,0,9,9,9,9,9,0,0,0,0,0,0,0,0,0,};
+static Sprite simple_anim_rev_key0_sprite = {0, 8, 8, simple_anim_rev_key0_sprite_data
+};
+AnimKey simple_anim_rev_key0 = {&simple_anim_rev_key0_sprite, 60};
+static unsigned short simple_anim_rev_key1_sprite_data[] = {
+0,0,0,0,0,0,0,0,0,9,9,0,0,0,9,9,0,9,9,9,0,9,9,9,0,0,0,9,9,9,0,0,0,0,0,9,9,9,0,0,0,0,9,9,9,9,9,0,0,0,9,9,9,9,9,0,0,0,0,0,0,0,0,0,};
+static Sprite simple_anim_rev_key1_sprite = {0, 8, 8, simple_anim_rev_key1_sprite_data
+};
+AnimKey simple_anim_rev_key1 = {&simple_anim_rev_key1_sprite, 50};
+static unsigned short simple_anim_rev_key2_sprite_data[] = {
+0,0,0,0,0,0,0,0,0,0,9,9,0,9,9,0,0,0,0,9,0,9,0,0,0,0,0,9,9,9,0,0,0,0,0,9,9,9,0,0,0,0,9,9,9,9,9,0,0,0,9,9,9,9,9,0,0,0,0,0,0,0,0,0,};
+static Sprite simple_anim_rev_key2_sprite = {0, 8, 8, simple_anim_rev_key2_sprite_data
+};
+AnimKey simple_anim_rev_key2 = {&simple_anim_rev_key2_sprite, 40};
+static unsigned short simple_anim_rev_key3_sprite_data[] = {
+0,0,1,1,0,0,0,0,0,1,0,1,1,0,0,0,0,1,0,0,1,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,1,1,0,0,0,1,0,1,1,0,0,0,0,1,1,1,0,0,0,0,};
+static Sprite simple_anim_rev_key3_sprite = {0, 8, 8, simple_anim_rev_key3_sprite_data
+};
+AnimKey simple_anim_rev_key3 = {&simple_anim_rev_key3_sprite, 20};
+static unsigned short simple_anim_rev_key4_sprite_data[] = {
+0,1,1,1,1,1,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,1,1,1,1,0,0,};
+static Sprite simple_anim_rev_key4_sprite = {0, 8, 8, simple_anim_rev_key4_sprite_data
+};
+AnimKey simple_anim_rev_key4 = {&simple_anim_rev_key4_sprite, 20};
+static unsigned short simple_anim_rev_key5_sprite_data[] = {
+10,9,9,9,9,9,9,9,9,9,9,10,10,10,9,9,9,9,9,9,9,9,10,10,9,10,9,10,9,9,9,10,9,10,9,9,10,9,9,10,9,9,10,9,9,10,10,9,9,9,10,9,10,9,9,9,9,9,9,10,10,9,9,10,};
+static Sprite simple_anim_rev_key5_sprite = {0, 8, 8, simple_anim_rev_key5_sprite_data
+};
+AnimKey simple_anim_rev_key5 = {&simple_anim_rev_key5_sprite, 20};
+static unsigned short simple_anim_rev_key6_sprite_data[] = {
+6,6,11,11,11,6,11,11,6,6,6,6,11,6,11,11,11,6,11,6,6,6,6,11,11,6,6,11,6,6,6,6,11,11,6,11,6,11,6,6,6,11,6,11,6,11,6,6,6,6,11,6,11,11,11,6,11,11,11,11,11,6,11,11,};
+static Sprite simple_anim_rev_key6_sprite = {0, 8, 8, simple_anim_rev_key6_sprite_data
+};
+AnimKey simple_anim_rev_key6 = {&simple_anim_rev_key6_sprite, 20};
+static unsigned short simple_anim_rev_key7_sprite_data[] = {
+3,7,3,7,7,3,7,7,7,7,7,7,7,7,8,7,7,7,8,7,7,3,7,8,7,8,7,8,8,7,8,8,7,8,7,7,8,7,7,7,7,8,8,7,8,7,7,8,7,7,7,8,8,7,7,8,7,3,7,7,7,7,7,7,};
+static Sprite simple_anim_rev_key7_sprite = {0, 8, 8, simple_anim_rev_key7_sprite_data
+};
+AnimKey simple_anim_rev_key7 = {&simple_anim_rev_key7_sprite, 20};
+AnimKey simple_anim_rev_keys[] = {
+simple_anim_rev_key0,
+simple_anim_rev_key1,
+simple_anim_rev_key2,
+simple_anim_rev_key3,
+simple_anim_rev_key4,
+simple_anim_rev_key5,
+simple_anim_rev_key6,
+simple_anim_rev_key7,
+};
+SpriteAnim simple_anim_rev = { simple_anim_rev_keys, 8 };rgb15 paletteColors[] = {
 0,32767,9513,4607,4221,991,30336,1625,543,9924,3990,25895,4775,1855,10743,6512,5356,};

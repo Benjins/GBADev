@@ -203,6 +203,10 @@ static inline void set_sprite_memory(Sprite sprite, volatile uint16* memory){
 	}
 }
 
+#include "Timer.h"
+
+#include "spriteAnim.h"
+
 void SetHealthSprite(volatile uint16* memory, int health){
 	for(int i = 0; i < 16; i++){
 		memory[i] = 0;
@@ -259,6 +263,9 @@ int main(void) {
 		//bg1_palette_memory[i] = paletteColors[i];
 		object_palette_memory[i] = paletteColors[i];
 	}
+	
+	TimerList timers = {};
+	AnimationList anims = {};
 	
 	Sprite playerDirections[DIR_COUNT] = {playerSpriteUp, playerSpriteDown, playerSpriteLeft, playerSpriteRight};
 	
@@ -367,6 +374,8 @@ int main(void) {
 		set_sprite_memory(backMap.bgSprites[i], bg0_tile_mem);
 	}
 	
+	AddAnimation(&anims, simple_anim, (volatile uint16*)tile_memory[0][9], &timers);
+	
 	volatile uint16* screenmap0Start = &scr_blk_mem[24][0];
 	
 	uint32 prevKeys = 0;
@@ -380,6 +389,9 @@ int main(void) {
 	while (1) {
 		//VBlankIntrWait();
 		asm("swi 0x05");
+		
+		UpdateTimers(&timers);
+		UpdateAnimations(&anims, &timers);
 		
 		uint32 key_states = ~REG_KEY_INPUT & KEY_ANY;
 		

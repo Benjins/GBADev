@@ -77,6 +77,21 @@ void WriteBackground(char* folderName, Token varName, Token fileName, FILE* asse
 
 #include "tileMapper/BackgroundParsing.h"
 
+
+// Gah...
+typedef struct{
+	int* data;
+	int width;
+	int height;
+} BitmapData;
+
+BitmapData LoadBMPFile(char* fileName) {
+	BitmapData dat = {0x01, 0 ,0};
+	return dat;
+}
+
+#include "animer/AnimAsset.h"
+
 int main(int argc, char** argv){
 
 	if(argc != 2){
@@ -170,7 +185,7 @@ int main(int argc, char** argv){
 			char spriteVarNameStr[256] = {};
 			int spriteVarNameLength = sprintf(spriteVarNameStr, "%s_bg%d", bgAsset.backMap, i);
 			Token spriteVarName = {spriteVarNameStr, spriteVarNameLength};
-			printf("Found bg sprite named '%.*s'\n", spriteVarName.length, spriteVarName.start);
+			//printf("Found bg sprite named '%.*s'\n", spriteVarName.length, spriteVarName.start);
 			Token bgSpriteFile = {bgAsset.sprites[i].fileName, strlen(bgAsset.sprites[i].fileName)};
 			WriteAsset(argv[1], spriteVarName, bgSpriteFile, assetsHeaderFile, &palette, true);
 		}
@@ -196,6 +211,54 @@ int main(int argc, char** argv){
 		
 		fprintf(assetsHeaderFile, "Background %s = {%s_map, %s_bgs, %s_flags, %d};\n", 
 				bgAsset.backMap, bgAsset.backMap, bgAsset.backMap, bgAsset.backMap, bgAsset.spriteCount);
+	}
+	else{
+		printf("Could not find '%s', skipping.\n", backgroundFileName);
+	}
+	
+	char animFileName[256] = {};
+	sprintf(animFileName, "%s/%s", argv[1], "anim.txt");
+	FILE* animFile = fopen(animFileName, "rb");
+	
+	if(animFile != NULL){
+		fclose(animFile);
+		
+		printf("Opening animation file '%s'\n", animFileName);
+		
+		fprintf(assetsHeaderFile, "typedef struct{Sprite* sprite; int duration;} AnimKey;\n");
+		fprintf(assetsHeaderFile, "typedef struct{AnimKey* keys; int keyCount;} SpriteAnim;\n");
+		
+		AnimAsset animAsset = {};
+		ReadAnimAssetFile(&animAsset, "anim.txt", argv[1], strlen(argv[1]));
+		
+		Token dirName = {argv[1], strlen(argv[1])};
+		
+		for(int i = 0; i < animAsset.animClipCount; i++){
+			
+			char* animName = animAsset.animClips[i].name;
+			
+			for(int j = 0; j < animAsset.animClips[i].keyFrameCount; j++){
+				char varNameStr[256] = {};
+				int varNameLength = sprintf(varNameStr, "%s_key%d_sprite", animName, j);
+				Token varName = {varNameStr, varNameLength};
+				
+				Token fileName = {animAsset.animClips[i].keyFrames[j].fileName, strlen(animAsset.animClips[i].keyFrames[j].fileName)};
+				
+				WriteAsset(argv[1], varName, fileName, assetsHeaderFile, &palette, true);
+				
+				fprintf(assetsHeaderFile, "AnimKey %s_key%d = {&%s, %d};\n", animName, j, varNameStr, animAsset.animClips[i].keyFrames[j].duration);
+			}
+			
+			fprintf(assetsHeaderFile, "AnimKey %s_keys[] = {\n", animName);
+			for(int j = 0; j < animAsset.animClips[i].keyFrameCount; j++){
+				fprintf(assetsHeaderFile, "%s_key%d,\n", animName, j);
+			}
+			fprintf(assetsHeaderFile, "};\n");
+			
+			fprintf(assetsHeaderFile, "SpriteAnim %s = { %s_keys, %d };", animName, animName, animAsset.animClips[i].keyFrameCount);
+		}
+		
+		//WriteAsset(argv[1], varName, fileName, assetsHeaderFile, &palette, true);
 	}
 	else{
 		printf("Could not find '%s', skipping.\n", backgroundFileName);
@@ -281,7 +344,7 @@ void WriteBackground(char* folderName, Token varName, Token fileName, FILE* asse
 }
 
 void WriteAsset(char* folderName, Token varName, Token fileName, FILE* assetHeader, Palette* palette, bool tileMemory){
-	printf("Found asset named '%.*s' at file '%.*s'.\n", varName.length, varName.start, fileName.length, fileName.start);
+	//printf("Found asset named '%.*s' at file '%.*s'.\n", varName.length, varName.start, fileName.length, fileName.start);
 	
 	int folderNameLength = strlen(folderName);
 	char* fileNameCpy = (char*)malloc(folderNameLength + 1 + fileName.length+1);
@@ -313,7 +376,7 @@ void WriteAsset(char* folderName, Token varName, Token fileName, FILE* assetHead
 	int width = header.imageWidth;
 	int height = header.imageHeight;
 	
-	printf("width: %d, height: %d\n", width, height);
+	//printf("width: %d, height: %d\n", width, height);
 
 	RGBAPixel* pixelData = (RGBAPixel*)malloc(width*height*sizeof(RGBAPixel));
 	
