@@ -66,6 +66,8 @@ int currMouseX = 0;
 int currMouseY = 0;
 int mouseState = 0;
 
+int scrollY = 0;
+
 void RenderGradient();
 void WindowsPaintWindow(HWND hwnd);
 void MouseDown(int mouseX, int mouseY);
@@ -161,8 +163,8 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 	
 	int plusData[256] = {};
 	for(int i = 0; i < 16; i++){
-		plusData[64+i] = 0xFFFFFF;
-		plusData[i*8+4] = 0xFFFFFF;
+		plusData[128+i] = 0xFFFFFF;
+		plusData[i*16+8] = 0xFFFFFF;
 	}
 	
 	BitmapData plusSign = {plusData, 16, 16};
@@ -212,7 +214,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 		timer.Reset();
 		char timeStr[256] = {};
 		snprintf(timeStr, 255, "Time this frame: %3.3f ms\n", deltaTime*1000);
-
+		
 		if(isPlaying){
 			animTime += deltaTime;
 		}
@@ -227,6 +229,13 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 			SaveAnimAssetFile(&animAsset, fullAssetFileName);
 		}
 		
+		if(keyStates['T'] > 1){
+			scrollY++;
+		}
+		if(keyStates['y'] > 1){
+			scrollY--;
+		}
+		
 		BitmapData frameBuffer = { (int*)bitmapData, bmpInfo.bmiHeader.biWidth, bmpInfo.bmiHeader.biHeight };
 		memset(bitmapData, 0, frameBuffer.width*frameBuffer.height * 4);
 		
@@ -237,6 +246,9 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 				animTime = 0;
 			}
 		}
+		
+		//Useful for seeing performance
+		//DrawText(frameBuffer, timeStr, 400, 400, 500, 100);
 		
 		DrawBox(frameBuffer, 20, frameBuffer.height - 40, frameBuffer.width - 220, 30, white);
 		
@@ -379,7 +391,7 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 		
 		NoramlizeAnimClip(&animAsset.animClips[animClipIndex]);
 		
-		DrawBitmap(frameBuffer, 50, 50, 350, 350, animAsset.animClips[animClipIndex].keyFrames[currKeyFrame].spriteData);
+		DrawBitmap(frameBuffer, 50, 50, 250, 250, animAsset.animClips[animClipIndex].keyFrames[currKeyFrame].spriteData);
 		
 		WindowsPaintWindow(window);
 		

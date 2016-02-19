@@ -33,5 +33,6 @@ TODO:
    - ~~Button to add new animations~~
    - Change duration of last keyframe
    - Way to rename them?
+   - Save button in gui, not just 'W'
  * ~~Export header from animations file~~
  * Keep track of sprites exported in asset.h, prevent dupes

@@ -53,7 +53,7 @@ enum KeyState {
 KeyState keyStates[256] = {};
 
 inline KeyState StateFromBools(bool wasDown, bool isDown) {
-	return (KeyState)((wasDown ? 1 : 0) | (isDown ? 2 : 0));
+	return (KeyState)((wasDown ? 2 : 0) | (isDown ? 1 : 0));
 }
 
 #include "BackgroundParsing.h"
@@ -367,11 +367,20 @@ int CALLBACK WinMain(HINSTANCE inst, HINSTANCE prevInst,
 			WriteBGAssetFile(bgAsset, backgroundAssetFileName);
 		}
 		
-		if(mouseState = PRESS){
+		if(mouseState == PRESS){
 			mouseState = HOLD;
 		}
-		if(mouseState = RELEASE){
+		if(mouseState == RELEASE){
 			mouseState = OFF;
+		}
+		
+		for(int i = 0; i < 256; i++){
+			if(keyStates[i] == PRESS){
+				keyStates[i] = HOLD;
+			}
+			if(keyStates[i] == RELEASE){
+				keyStates[i] = OFF;
+			}
 		}
 
 		zoomLevel = clamp(zoomLevel, 0.25f, 2.0f);

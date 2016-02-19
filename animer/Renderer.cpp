@@ -111,8 +111,12 @@ void DrawBitmap(BitmapData bitmap, int x, int y, int w, int h, BitmapData sprite
 	if (x1 < 0) { x1 = 0; }
 	if (y1 < 0) { y1 = 0; }
 	if (x2 >= bitmap.width) { x2 = bitmap.width - 1; }
-	if (y2 < 0) { y2 = 0; }
 	if (y2 >= bitmap.height) { y2 = bitmap.height - 1; }
+
+	if (x2 < 0) { x2 = 0; }
+	if (y2 < 0) { y2 = 0; }
+	if (x1 >= bitmap.width) { x1 = bitmap.width - 1; }
+	if (y1 >= bitmap.height) { y1 = bitmap.height - 1; }
 
 	int* pixels = (int*)bitmap.data;
 	int* spritePixels = (int*)sprite.data;
