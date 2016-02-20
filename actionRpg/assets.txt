@@ -26,6 +26,7 @@ yFont:y.bmp
 zFont:z.bmp
 textBoxSprite:textBox.bmp
 monsterSprite:monster.bmp
+monsterLargeSprite:monster_large.bmp
 playerSpriteUp:player_sprite_up.bmp
 playerSpriteDown:player_sprite_down.bmp
 playerSpriteLeft:player_sprite_left.bmp

@@ -233,7 +233,8 @@ static int directionVectors[DIR_COUNT][2] = {{0, 1}, {0, -1}, {-1, 0}, {1, 0}};
 
 typedef enum {
 	FREEWALK,
-	CONVERSATION
+	CONVERSATION,
+	COMBAT
 } GameMode;
 
 GameMode currMode = FREEWALK;
@@ -254,31 +255,66 @@ void AddMonster(int x, int y){
 	monsterCount++;
 }
 
-int main(void) {
-	irqInit();
-	irqEnable(IRQ_VBLANK);
+TimerList timers = {};
+AnimationList anims = {};
+
+Sprite playerDirections[DIR_COUNT] = {playerSpriteUp, playerSpriteDown, playerSpriteLeft, playerSpriteRight};
 	
-	for(int i = 0; i < ARRAY_LENGTH(paletteColors); i++){
-		bg0_palette_memory[i] = paletteColors[i];
-		//bg1_palette_memory[i] = paletteColors[i];
-		object_palette_memory[i] = paletteColors[i];
+const int player_height = 8, player_width = 8;
+	
+const int centerX = SCREEN_WIDTH/2 - player_height/2;
+const int centerY = SCREEN_HEIGHT/2 - player_width/2;
+	
+int playerX = 0, playerY = 0;
+Direction playerDir = DOWN;
+int playerHealth = 16;
+
+volatile uint16* player_health_memory = (uint16 *)tile_memory[4][12];
+
+volatile uint16* screenmap0Start = &scr_blk_mem[24][0];
+
+//We set them to -1, so that we force an update (since they are immediately set to 0)
+int bgTileOffsetX = -1;
+int bgTileOffsetY = -1;
+
+volatile uint16* monster_tile_memory = (uint16 *)tile_memory[4][13];
+
+void EnterCombat(){
+	anims.animCount = 0;
+	AddAnimation(&anims, monster_large_anim, monster_tile_memory, &timers);
+	
+	for(int i = 0; i < 32*32; i++){
+		screenmap0Start[i] = 0;
 	}
 	
-	TimerList timers = {};
-	AnimationList anims = {};
+	for(int i = 0; i < 128; i++){
+		set_object_position(&oam_memory[i], -17, -17);
+	}
 	
-	Sprite playerDirections[DIR_COUNT] = {playerSpriteUp, playerSpriteDown, playerSpriteLeft, playerSpriteRight};
 	
-	volatile uint16* empty_tile_memory = (uint16 *)tile_memory[4][0];
-	for (int i = 0; i < (sizeof(tile4bpp) / 2) * 4; ++i) { empty_tile_memory[i] = 0x0000; }
+	
+	oam_memory[0].attribute_zero = 0; 
+	oam_memory[0].attribute_one = 0x4000; 
+	oam_memory[0].attribute_two = 13;
+	
+	set_object_position(&oam_memory[0], SCREEN_WIDTH - 50, 30);
+	
+	currMode = COMBAT;
+}
+
+
+void ExitCombat(){
+	for(int i = 0; i < 128; i++){
+		set_object_position(&oam_memory[i], -17, -17);
+	}
+	
+	anims.animCount = 0;
+	AddAnimation(&anims, monster_anim, monster_tile_memory, &timers);
 	
 	for(int i = 0; i < DIR_COUNT; i++){
 		volatile uint16* player_tile_memory = (uint16 *)tile_memory[4][i+1];
 		set_sprite_memory(playerDirections[i], player_tile_memory);
 	}
-	
-	volatile uint16* object_tile_memory = (uint16 *)tile_memory[4][1+DIR_COUNT];
-	for (int i = 0; i < (sizeof(tile4bpp) / 2) * 4; ++i) { object_tile_memory[i] = 0x2232; }
 	
 	Sprite font[] = {aFont, bFont, cFont, dFont, eFont, fFont, gFont, hFont, iFont,
 					jFont, kFont, lFont, mFont, nFont, oFont, pFont, qFont, rFont, sFont,
@@ -286,29 +322,10 @@ int main(void) {
 					
 	static_assert(ARRAY_LENGTH(font) == 26, "Font must have 26 characters.");
 	
-	for(int i = 0; i < 4; i++){
-		volatile uint16* text_box_tile_memory = (uint16 *)tile_memory[4][i+2+DIR_COUNT];
-		set_sprite_memory(textBoxSprite, text_box_tile_memory);
-	}
-	
-	volatile uint16* player_health_memory = (uint16 *)tile_memory[4][12];
-	
-	//volatile uint16* monster_tile_memory = (uint16 *)tile_memory[4][13];
-	//set_sprite_memory(monsterSprite, monster_tile_memory);
-	
 	for(int i = 0; i < ARRAY_LENGTH(font); i++){
 		volatile uint16* uiFontMemory = (uint16 *)tile_memory[4][14+i];
 		set_sprite_memory(font[i], uiFontMemory);
 	}
-	
-	int playerX = 0, playerY = 0;
-	Direction playerDir = DOWN;
-	int playerHealth = 16;
-	
-	const int player_height = 8, player_width = 8;
-	
-	const int centerX = SCREEN_WIDTH/2 - player_height/2;
-	const int centerY = SCREEN_HEIGHT/2 - player_width/2;
 	
 	playerHealthAttribs->attribute_zero = 0;
 	playerHealthAttribs->attribute_one = 0;
@@ -338,6 +355,34 @@ int main(void) {
 		set_object_position(monsterAttrib, -10, -10);
 	}
 	
+	bgTileOffsetX--;
+	bgTileOffsetY--;
+	
+	currMode = FREEWALK;
+}
+
+int main(void) {
+	irqInit();
+	irqEnable(IRQ_VBLANK);
+	
+	for(int i = 0; i < ARRAY_LENGTH(paletteColors); i++){
+		bg0_palette_memory[i] = paletteColors[i];
+		object_palette_memory[i] = paletteColors[i];
+	}
+	
+	volatile uint16* empty_tile_memory = (uint16 *)tile_memory[4][0];
+	for (int i = 0; i < (sizeof(tile4bpp) / 2) * 4; ++i) { empty_tile_memory[i] = 0x0000; }
+	
+	volatile uint16* object_tile_memory = (uint16 *)tile_memory[4][1+DIR_COUNT];
+	for (int i = 0; i < (sizeof(tile4bpp) / 2) * 4; ++i) { object_tile_memory[i] = 0x2232; }
+	
+	for(int i = 0; i < 4; i++){
+		volatile uint16* text_box_tile_memory = (uint16 *)tile_memory[4][i+2+DIR_COUNT];
+		set_sprite_memory(textBoxSprite, text_box_tile_memory);
+	}
+	
+	ExitCombat();
+	
 	AddObject(-50, 50, "I am you");
 	AddObject(-20, 150, "The only way");
 	AddObject(210, -20, "We are one");
@@ -358,12 +403,9 @@ int main(void) {
 	}
 		
 	// Set the display parameters to enable objects, and use a 1D object->tile mapping, and enable BG0
-	REG_DISPLAY = 0x1000 | 0x0040 | 0x0100 ;// | 0x0200;
+	REG_DISPLAY = 0x1000 | 0x0040 | 0x0100;
 	
 	REG_BG0_CNT = BG_CBB(0) | BG_SBB(24) | BG_REG_64x32;
-	//REG_BG1_CNT = BG_CBB(1) | BG_SBB(6) | BG_REG_64x32;
-	
-	//uint16 bg1_tileCols[] = {0x3421, 0x2333, 0x1220, 0x1001, 0x2333, 0x2302, 0x4424, 0x4112, 0x2314, 0x2222};
 	
 	volatile uint16* bg0_tile_mem0 = (uint16 *)tile_memory[0][0];
 	for (int i = 0; i < (sizeof(tile4bpp) / 2) * 4; ++i) {bg0_tile_mem0[i] = 0;}
@@ -374,20 +416,11 @@ int main(void) {
 		set_sprite_memory(backMap.bgSprites[i], bg0_tile_mem);
 	}
 	
-	volatile uint16* monster_tile_memory = (uint16 *)tile_memory[4][13];
-	
-	//AddAnimation(&anims, simple_anim, (volatile uint16*)tile_memory[0][9], &timers);
-	AddAnimation(&anims, monster_anim, monster_tile_memory, &timers);
-	
-	volatile uint16* screenmap0Start = &scr_blk_mem[24][0];
-	
 	uint32 prevKeys = 0;
 	
-	//We set them to -1, so that we force an update (since they are immediately set to 0)
-	int bgTileOffsetX = -1;
-	int bgTileOffsetY = -1;
-	
 	HideTextBox();
+	
+	int combatId = -1;
 	
 	while (1) {
 		//VBlankIntrWait();
@@ -536,9 +569,10 @@ int main(void) {
 					int diffSqr = diffX*diffX + diffY*diffY;
 					
 					if(diffSqr < 128){
-						PushText(objects[i].whatSay, 5, SCREEN_HEIGHT - 20);
-						ShowTextBox();
-						currMode = CONVERSATION;
+						//PushText(objects[i].whatSay, 5, SCREEN_HEIGHT - 20);
+						//ShowTextBox();
+						//currMode = CONVERSATION;
+						EnterCombat();
 					}
 				}
 			}
@@ -546,8 +580,19 @@ int main(void) {
 		else if(currMode == CONVERSATION){
 			if((key_states & BUTTON_B) && !(prevKeys & BUTTON_B)){
 				PopText();
-				HideTextBox();
-				currMode = FREEWALK;
+				//HideTextBox();
+				//currMode = FREEWALK;
+			}
+		}
+		else if(currMode == COMBAT){
+			UpdateTimers(&timers);
+			
+			if(combatId == -1){
+				combatId = AddTimer(&timers, 120);
+			}
+			else if(IsTimerDone(&timers, combatId)){
+				combatId = -1;
+				ExitCombat();
 			}
 		}
 		

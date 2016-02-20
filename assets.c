@@ -396,8 +396,10 @@ void WriteAsset(char* folderName, Token varName, Token fileName, FILE* assetHead
 			int index = j*width+i;
 			int memIdx = (height - 1 - j) * width + i;
 			if(tileMemory){
-				int blockIdx = i / 8;
-				memIdx = blockIdx * 64 + (height - 1 - j) * 8 + (i % 8);
+				int realY = (height - 1 - j);
+				int blockXIdx = i / 8;
+				int blockYIdx = realY / 8;
+				memIdx = blockYIdx * 64 * (width/8) + blockXIdx * 64 + (realY % 8) * 8 + (i % 8);
 			}
 			
 			int paletteIndex = -1;
