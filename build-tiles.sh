@@ -1,1 +1,1 @@
-g++ tileMapper/Renderer.cpp tileMapper/x11_main.cpp tileMapper/main.cpp -o tileMapper -lX11
+g++ -std=c++0x tileMapper/Renderer.cpp tileMapper/x11_main.cpp tileMapper/main.cpp -o tileMapper.out -lX11
