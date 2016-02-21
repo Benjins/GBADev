@@ -17,8 +17,7 @@ typedef enum{
 typedef struct{
 	int position[2];
 	MonsterState currState;
-	short timer;
-	short timerGoal;
+	int timerId;
 } Monster;
 
 inline void ResolveCollisions(int* startPos, int* moveDir, int* outPos){
@@ -48,7 +47,7 @@ inline void ResolveCollisions(int* startPos, int* moveDir, int* outPos){
 	}
 }
 
-void UpdateMonsters(Monster* monsters, int monsterCount, int playerX, int playerY, int* playerHealth){
+void UpdateMonsters(Monster* monsters, int monsterCount, TimerList* timers, int playerX, int playerY, int* playerHealth){
 	int playerPos[2] = {playerX, playerY};
 	
 	for(int i = 0; i < monsterCount; i++){
@@ -63,10 +62,8 @@ void UpdateMonsters(Monster* monsters, int monsterCount, int playerX, int player
 				monsters[i].position[j] = newPos[j];
 			}
 			
-			monsters[i].timer++;
-			if(monsters[i].timer >= monsters[i].timerGoal){
-				monsters[i].timer = 0;
-				monsters[i].timerGoal = (GetRandom() % 20) + 30;
+			if(IsTimerDone(timers, monsters[i].timerId)){
+				monsters[i].timerId = AddTimer(timers, (GetRandom() % 20) + 30);
 				monsters[i].currState = PAUSE;
 			}
 			
@@ -75,11 +72,8 @@ void UpdateMonsters(Monster* monsters, int monsterCount, int playerX, int player
 			}
 		}
 		else if(monsters[i].currState == PAUSE){
-			monsters[i].timer++;
-			
-			if(monsters[i].timer >= monsters[i].timerGoal){
-				monsters[i].timer = 0;
-				monsters[i].timerGoal = (GetRandom() % 20) + 30;
+			if(IsTimerDone(timers, monsters[i].timerId)){
+				monsters[i].timerId = AddTimer(timers, (GetRandom() % 20) + 30);
 				monsters[i].currState = (MonsterState)(PATROL_FIRST + (GetRandom() % (PATROL_LAST - PATROL_FIRST)));
 			}
 			
@@ -91,10 +85,10 @@ void UpdateMonsters(Monster* monsters, int monsterCount, int playerX, int player
 			int moveVec[2] = {};
 			if(playerDistSqr <= fightDistSqr){
 				monsters[i].currState = FIGHT;
-				monsters[i].timer = 60;
+				monsters[i].timerId = AddTimer(timers, 60);
 			}
 			else if(playerDistSqr >= chaseEndDistSqr){
-				monsters[i].timer = 0;
+				monsters[i].timerId = AddTimer(timers, 20);
 				monsters[i].currState = (MonsterState)(PATROL_FIRST + (GetRandom() % PATROL_LAST - PATROL_FIRST));
 			}
 			else if(abs(playerDir[0]) > abs(playerDir[1])){
@@ -112,16 +106,14 @@ void UpdateMonsters(Monster* monsters, int monsterCount, int playerX, int player
 			}
 		}
 		else if(monsters[i].currState == FIGHT){
-			if(playerDistSqr > fightDistSqr){
+			if(IsTimerDone(timers, monsters[i].timerId)){
+				if(playerDistSqr <= fightDistSqr){
+					shouldEnterCombat = 1;
+				}
+				
 				monsters[i].currState = SEEK;
 			}
 			
-			monsters[i].timer++;
-			
-			if(monsters[i].timer >= 60){
-				monsters[i].timer = 0;
-				shouldEnterCombat = 1;
-			}
 		}
 		else{
 			//Shouldn't happen

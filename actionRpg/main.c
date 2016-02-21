@@ -10,6 +10,8 @@ typedef int int32;
 
 #include "random.h"
 
+#include "Timer.h"
+
 typedef uint16 rgb15;
 typedef struct object_attributes {
 	uint16 attribute_zero;
@@ -171,7 +173,7 @@ void PushText(const char* text, int x, int y){
 	textIndexCount++;
 	
 	int index = letterCount;
-	int position=0;
+	int position = 0;
 	for(const char* cursor = text; *cursor != '\0'; cursor++){
 		if(*cursor == ' '){
 			position++;
@@ -204,8 +206,6 @@ static inline void set_sprite_memory(Sprite sprite, volatile uint16* memory){
 		memory[i] = mem;
 	}
 }
-
-#include "Timer.h"
 
 #include "spriteAnim.h"
 
@@ -244,6 +244,9 @@ GameMode currMode = FREEWALK;
 int shouldEnterCombat = 0;
 int shouldExitCombat = 0;
 
+TimerList timers = {};
+AnimationList anims = {};
+
 #include "monster.h"
 
 #define MAX_MONSTER_COUNT 20
@@ -254,14 +257,11 @@ int monsterCount = 0;
 void AddMonster(int x, int y){
 	monsters[monsterCount].position[0] = x;
 	monsters[monsterCount].position[1] = y;
-	monsters[monsterCount].timer = 0;
-	monsters[monsterCount].currState = PATROL_UP;
+	monsters[monsterCount].timerId = AddTimer(&timers, (GetRandom() % 20) + 30);
+	monsters[monsterCount].currState = PAUSE;
 	
 	monsterCount++;
 }
-
-TimerList timers = {};
-AnimationList anims = {};
 
 Sprite playerDirections[DIR_COUNT] = {playerSpriteUp, playerSpriteDown, playerSpriteLeft, playerSpriteRight};
 	
@@ -571,7 +571,7 @@ int main(void) {
 				}
 			}
 			
-			UpdateMonsters(monsters, monsterCount, playerX, playerY, &playerHealth);
+			UpdateMonsters(monsters, monsterCount, &timers, playerX, playerY, &playerHealth);
 			
 			SetHealthSprite(player_health_memory, playerHealth);
 			
