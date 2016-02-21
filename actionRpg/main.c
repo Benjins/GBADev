@@ -127,6 +127,8 @@ int textIndexCount = 0;
 int textIndices[MAX_TEXT_STRING_COUNT] = {};
 
 void ClearText(){
+	textIndexCount = 0;
+	letterCount = 0;
 	for(int i = 0; i < MAX_LETTER_COUNT; i++){
 		uiTextAttribs[i].attribute_two = 0;
 	}
@@ -240,6 +242,7 @@ typedef enum {
 GameMode currMode = FREEWALK;
 
 int shouldEnterCombat = 0;
+int shouldExitCombat = 0;
 
 #include "monster.h"
 
@@ -459,6 +462,15 @@ int main(void) {
 		//VBlankIntrWait();
 		asm("swi 0x05");
 		
+		if(shouldEnterCombat){
+			EnterCombat();
+			shouldEnterCombat = 0;
+		}
+		if(shouldExitCombat){
+			ExitCombat();
+			shouldExitCombat = 0;
+		}
+		
 		UpdateTimers(&timers);
 		UpdateAnimations(&anims, &timers);
 		
@@ -633,16 +645,11 @@ int main(void) {
 					//TODO...
 				}
 				else if(effect == RUN){
-					ExitCombat();
+					shouldExitCombat = 1;
 				}
 			}
 			
 			set_object_position(&objectAttribs[1], SCREEN_WIDTH - 90, SCREEN_HEIGHT - 50 + 10*combatMenuIndex);
-		}
-		
-		if(shouldEnterCombat){
-			EnterCombat();
-			shouldEnterCombat = 0;
 		}
 		
 		prevKeys = key_states;
