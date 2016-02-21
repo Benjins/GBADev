@@ -43,10 +43,6 @@ enum KeyState {
 
 KeyState keyStates[256] = {};
 
-inline KeyState StateFromBools(bool wasDown, bool isDown) {
-	return (KeyState)((wasDown ? 2 : 0) | (isDown ? 1 : 0));
-}
-
 #include "BackgroundParsing.h"
 
 BackgroundAsset bgAsset = {};

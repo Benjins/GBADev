@@ -2,6 +2,40 @@
 #include <Windows.h>
 #include <Windowsx.h>
 
+#include <stdio.h>
+
+typedef struct{
+	HWND hwnd;
+} WindowObj;
+
+enum KeyState {
+	OFF = 0,
+	RELEASE = 1,
+	PRESS = 2,
+	HOLD = 3
+};
+
+inline KeyState StateFromBools(bool wasDown, bool isDown) {
+	return (KeyState)((wasDown ? 2 : 0) | (isDown ? 1 : 0));
+}
+
+extern KeyState keyStates[256];
+
+extern int currMouseX;
+extern int currMouseY;
+extern int mouseState;
+
+void RunFrame();
+
+void InitText(const char* fileName, int size);
+
+void Init();
+
+extern void* bitmapData;
+
+extern const char* arg1Str;
+extern int arg1Length;
+
 HBITMAP bitmap = 0;
 BITMAPINFO bmpInfo = {};
 
@@ -47,11 +81,11 @@ void ResizeWindow(int w, int h) {
 	bitmap = CreateDIBSection(deviceContext, &bmpInfo, DIB_RGB_COLORS, &bitmapData, 0, 0);
 	ReleaseDC(0, deviceContext);
 	
-	frameWidth = bmpInfo.bmiHeader.bmiWidth;
-	frameHeight = bmpInfo.bmiHeader.bmiHeight;
+	frameWidth = bmpInfo.bmiHeader.biWidth;
+	frameHeight = bmpInfo.bmiHeader.biHeight;
 }
 
-bool WindowsOpenFile(char* fileName, WindowObj* owner, char* fileFilter, char* filterTitle, char* dirName, int dirLength){
+bool WindowsOpenFile(char* fileName, WindowObj* owner, const char* fileFilter, const char* filterTitle, const char* dirName, int dirLength){
 	OPENFILENAME spriteFile = {};
 	
 	char initialDir[256] = {};
@@ -100,10 +134,6 @@ bool WindowsOpenFile(char* fileName, WindowObj* owner, char* fileFilter, char* f
 	return false;
 }
 
-typedef struct{
-	HWND hwnd;
-} WindowObj;
-
 extern WindowObj* windowObj;
 
 extern const char* arg1Str;
@@ -123,10 +153,13 @@ extern int arg1Length;
 
 	HWND window = CreateWindow(windowCls.lpszClassName, "Tile Mapper", WS_OVERLAPPEDWINDOW | WS_VISIBLE, 50, 50, 1280, 720, 0, 0, inst, 0);
 
+	WindowObj windowObjVal = {};
+	windowObjVal.hwnd = window;
+
+	windowObj = &windowObjVal;
+
 	windowObj->hwnd = window;
-
-	Timer timer;
-
+	
 	char* commandLine = cmdLine;
 	arg1Str = commandLine + strspn(commandLine, "\n ");
 	arg1Length = strcspn(arg1Str, "\n ");

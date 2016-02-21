@@ -61,7 +61,7 @@ BitmapData fontBMP = {};
 
 stbtt_bakedchar fontBakeData[96]; // ASCII 32..126 is 95 glyphs
 
-void InitText(char* fileName, int size){
+void InitText(const char* fileName, int size){
 	FILE* fontFile = fopen(fileName, "rb");
 	
 	fseek(fontFile, 0, SEEK_END);
@@ -215,7 +215,7 @@ void Render(BitmapData frameBuffer) {
 
 }
 
-BitmapData LoadBMPFile(char* fileName) {
+BitmapData LoadBMPFile(const char* fileName) {
 	FILE* bmpFile = fopen(fileName, "rb");
 	
 	if(bmpFile == NULL){
@@ -250,7 +250,7 @@ BitmapData LoadBMPFile(char* fileName) {
 	return {data, width, height};
 }
 
-void WriteBMPFile(char * fileName, BitmapData * bmp){
+void WriteBMPFile(const char* fileName, BitmapData * bmp){
 	FILE* bmpFile = fopen(fileName, "wb");
 
 	if (bmpFile == NULL) {

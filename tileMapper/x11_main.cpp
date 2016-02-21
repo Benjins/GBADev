@@ -43,7 +43,7 @@ int bytes_per_line = 0; // number of bytes in the client image between the start
 
 Pixmap pixmap=0;
 
- Window window = 0;
+Window window = 0;
 
 XImage* img = NULL;
 

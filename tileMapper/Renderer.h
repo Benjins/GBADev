@@ -22,12 +22,12 @@ void DrawText(BitmapData bitmap, char* text, int x, int y, int width, int height
 
 void Render(BitmapData frameBuffer);
 
-void InitText(char* fileName, int size);
+void InitText(const char* fileName, int size);
 
 bool Button(BitmapData frameBuffer, int x, int y, int w, int h, int offCol, int hoverCol, int pressCol, char* label);
 
-BitmapData LoadBMPFile(char* fileName);
+BitmapData LoadBMPFile(const char* fileName);
 
-void WriteBMPFile(char* fileName, BitmapData* data);
+void WriteBMPFile(const char* fileName, BitmapData* data);
 
 #endif
