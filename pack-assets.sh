@@ -1,7 +1,7 @@
-gcc -std=c0x assets.c -o assets.out
+g++ -std=c++0x assets.c -o assets.out
 ./assets.out $1
-gcc -std=c0x sounds.c -o sounds.out
+g++ -std=c++0x sounds.c -o sounds.out
 ./sounds.out $1
-gcc -std=c0x midi.c -o midi.out
+g++ -std=c++0x midi.c -o midi.out
 ./midi.out $1
 

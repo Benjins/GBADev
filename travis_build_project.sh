@@ -1,5 +1,3 @@
-./pack-assets.sh $1
-
 wd=`pwd`
 ARMBIN="$wd/devkitpro/devkitARM/bin"
 "$ARMBIN/arm-none-eabi-g++" --std=c++11 "-I$ARMBIN/../../libgba/include" -c $1/main.c -mthumb-interwork -mthumb -O2 -o $1.o
