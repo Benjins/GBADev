@@ -2,3 +2,4 @@ simple_anim:a.bmp;20,b.bmp;20,c.bmp;20,d.bmp;20,e.bmp;20,f.bmp;20,g.bmp;20,h.bmp
 simple_anim_rev:frame3.bmp;60,frame2.bmp;50,frame1.bmp;40,d.bmp;20,e.bmp;20,bg2.bmp;20,bg3.bmp;20,bg1.bmp;20
 monster_anim:monster.bmp;27,monster2.bmp;20
 monster_large_anim:monster_large.bmp;23,monster_large2.bmp;20
+arrow_anim:arrow.bmp;50,arrow2.bmp;50

@@ -120,7 +120,7 @@ void UpdateMonsters(Monster* monsters, int monsterCount, int playerX, int player
 			
 			if(monsters[i].timer >= 60){
 				monsters[i].timer = 0;
-				(*playerHealth)--;
+				shouldEnterCombat = 1;
 			}
 		}
 		else{

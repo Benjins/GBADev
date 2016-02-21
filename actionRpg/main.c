@@ -178,7 +178,7 @@ void PushText(const char* text, int x, int y){
 		
 		char baseLetter = *cursor | caseMask;
 		if(baseLetter >= 'a' && baseLetter <= 'z'){
-			int spriteIdx = 14 + baseLetter - 'a';
+			int spriteIdx = 32 + baseLetter - 'a';
 			uiTextAttribs[index].attribute_two = spriteIdx;
 			set_object_position(&uiTextAttribs[index], 8*position+x, y);
 			index++;
@@ -239,6 +239,8 @@ typedef enum {
 
 GameMode currMode = FREEWALK;
 
+int shouldEnterCombat = 0;
+
 #include "monster.h"
 
 #define MAX_MONSTER_COUNT 20
@@ -279,34 +281,72 @@ int bgTileOffsetY = -1;
 
 volatile uint16* monster_tile_memory = (uint16 *)tile_memory[4][13];
 
+typedef enum{
+	ATTACK,
+	RUN
+} CombatOption;
+
+typedef struct{
+	const char* text;
+	CombatOption effect;
+} MenuOption;
+
+MenuOption combatMenu[] = {{"Attack", ATTACK}, {"Run", RUN}};
+
+int combatMenuIndex = 0;
+
 void EnterCombat(){
+	for(int i = 0; i < 128; i++){
+		oam_memory[i].attribute_zero = 0;
+		oam_memory[i].attribute_one = 0;
+		oam_memory[i].attribute_two = 0;
+	}
+	
 	anims.animCount = 0;
 	AddAnimation(&anims, monster_large_anim, monster_tile_memory, &timers);
+	
+	volatile uint16* arrow_tile_mem = (uint16 *)tile_memory[4][17];
+	
+	AddAnimation(&anims, arrow_anim, arrow_tile_mem, &timers);
 	
 	for(int i = 0; i < 32*32; i++){
 		screenmap0Start[i] = 0;
 	}
 	
-	for(int i = 0; i < 128; i++){
-		set_object_position(&oam_memory[i], -17, -17);
+	objectAttribs[0].attribute_zero = 0; 
+	objectAttribs[0].attribute_one = 0x4000; 
+	objectAttribs[0].attribute_two = 13;
+	
+	objectAttribs[1].attribute_zero = 0; 
+	objectAttribs[1].attribute_one = 0; 
+	objectAttribs[1].attribute_two = 17;
+	
+	for(int i = 0; i < ARRAY_LENGTH(combatMenu); i++){
+		PushText(combatMenu[i].text, SCREEN_WIDTH - 80, SCREEN_HEIGHT - 50 + 10*i);
 	}
 	
-	
-	
-	oam_memory[0].attribute_zero = 0; 
-	oam_memory[0].attribute_one = 0x4000; 
-	oam_memory[0].attribute_two = 13;
-	
-	set_object_position(&oam_memory[0], SCREEN_WIDTH - 50, 30);
+	set_object_position(&objectAttribs[0], SCREEN_WIDTH - 50, 30);
 	
 	currMode = COMBAT;
 }
 
-
 void ExitCombat(){
 	for(int i = 0; i < 128; i++){
-		set_object_position(&oam_memory[i], -17, -17);
+		oam_memory[i].attribute_zero = 0;
+		oam_memory[i].attribute_one = 0;
+		oam_memory[i].attribute_two = 0;
 	}
+	
+	ClearText();
+	
+	volatile uint16* object_tile_memory = (uint16 *)tile_memory[4][1+DIR_COUNT];
+	for (int i = 0; i < (sizeof(tile4bpp) / 2) * 4; ++i) { object_tile_memory[i] = 0x2232; }
+	
+	for(int i = 0; i < 4; i++){
+		volatile uint16* text_box_tile_memory = (uint16 *)tile_memory[4][i+2+DIR_COUNT];
+		set_sprite_memory(textBoxSprite, text_box_tile_memory);
+	}
+	
 	
 	anims.animCount = 0;
 	AddAnimation(&anims, monster_anim, monster_tile_memory, &timers);
@@ -323,8 +363,16 @@ void ExitCombat(){
 	static_assert(ARRAY_LENGTH(font) == 26, "Font must have 26 characters.");
 	
 	for(int i = 0; i < ARRAY_LENGTH(font); i++){
-		volatile uint16* uiFontMemory = (uint16 *)tile_memory[4][14+i];
+		volatile uint16* uiFontMemory = (uint16 *)tile_memory[4][32+i];
 		set_sprite_memory(font[i], uiFontMemory);
+	}
+	
+	for(int i = 0; i < MAX_TEXT_BOX_COUNT; i++){
+		volatile object_attributes* textBoxAttrib = &textBoxAttribs[i];
+		textBoxAttrib->attribute_zero = 0x0000;
+		textBoxAttrib->attribute_one = 0x4000; 
+		textBoxAttrib->attribute_two = 2+DIR_COUNT;
+		set_object_position(textBoxAttrib, -17, -17);
 	}
 	
 	playerHealthAttribs->attribute_zero = 0;
@@ -373,14 +421,6 @@ int main(void) {
 	volatile uint16* empty_tile_memory = (uint16 *)tile_memory[4][0];
 	for (int i = 0; i < (sizeof(tile4bpp) / 2) * 4; ++i) { empty_tile_memory[i] = 0x0000; }
 	
-	volatile uint16* object_tile_memory = (uint16 *)tile_memory[4][1+DIR_COUNT];
-	for (int i = 0; i < (sizeof(tile4bpp) / 2) * 4; ++i) { object_tile_memory[i] = 0x2232; }
-	
-	for(int i = 0; i < 4; i++){
-		volatile uint16* text_box_tile_memory = (uint16 *)tile_memory[4][i+2+DIR_COUNT];
-		set_sprite_memory(textBoxSprite, text_box_tile_memory);
-	}
-	
 	ExitCombat();
 	
 	AddObject(-50, 50, "I am you");
@@ -394,13 +434,6 @@ int main(void) {
 	AddMonster(50, 190);
 	AddMonster(120, 50);
 	AddMonster(20, 50);
-	
-	for(int i = 0; i < MAX_TEXT_BOX_COUNT; i++){
-		volatile object_attributes* textBoxAttrib = &textBoxAttribs[i];
-		textBoxAttrib->attribute_zero = 0x0000;
-		textBoxAttrib->attribute_one = 0x4000; 
-		textBoxAttrib->attribute_two = 2+DIR_COUNT;
-	}
 		
 	// Set the display parameters to enable objects, and use a 1D object->tile mapping, and enable BG0
 	REG_DISPLAY = 0x1000 | 0x0040 | 0x0100;
@@ -569,10 +602,9 @@ int main(void) {
 					int diffSqr = diffX*diffX + diffY*diffY;
 					
 					if(diffSqr < 128){
-						//PushText(objects[i].whatSay, 5, SCREEN_HEIGHT - 20);
-						//ShowTextBox();
-						//currMode = CONVERSATION;
-						EnterCombat();
+						PushText(objects[i].whatSay, 5, SCREEN_HEIGHT - 20);
+						ShowTextBox();
+						currMode = CONVERSATION;
 					}
 				}
 			}
@@ -580,23 +612,38 @@ int main(void) {
 		else if(currMode == CONVERSATION){
 			if((key_states & BUTTON_B) && !(prevKeys & BUTTON_B)){
 				PopText();
-				//HideTextBox();
-				//currMode = FREEWALK;
+				HideTextBox();
+				currMode = FREEWALK;
 			}
 		}
 		else if(currMode == COMBAT){
 			UpdateTimers(&timers);
 			
-			if(combatId == -1){
-				combatId = AddTimer(&timers, 120);
+			if((key_states & KEY_DOWN) && !(prevKeys & KEY_DOWN)){
+				combatMenuIndex = (combatMenuIndex + 1) % ARRAY_LENGTH(combatMenu);
 			}
-			else if(IsTimerDone(&timers, combatId)){
-				combatId = -1;
-				ExitCombat();
+			if((key_states & KEY_UP) && !(prevKeys & KEY_UP)){
+				combatMenuIndex = (combatMenuIndex + ARRAY_LENGTH(combatMenu) - 1) % ARRAY_LENGTH(combatMenu);
 			}
+			
+			if(!(key_states & BUTTON_A) && (prevKeys & BUTTON_A)){
+				CombatOption effect = combatMenu[combatMenuIndex].effect;
+				
+				if(effect == ATTACK){
+					//TODO...
+				}
+				else if(effect == RUN){
+					ExitCombat();
+				}
+			}
+			
+			set_object_position(&objectAttribs[1], SCREEN_WIDTH - 90, SCREEN_HEIGHT - 50 + 10*combatMenuIndex);
 		}
 		
-		
+		if(shouldEnterCombat){
+			EnterCombat();
+			shouldEnterCombat = 0;
+		}
 		
 		prevKeys = key_states;
 		

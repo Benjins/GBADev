@@ -397,5 +397,19 @@ AnimKey monster_large_anim_keys[] = {
 monster_large_anim_key0,
 monster_large_anim_key1,
 };
-SpriteAnim monster_large_anim = { monster_large_anim_keys, 2 };rgb15 paletteColors[] = {
+SpriteAnim monster_large_anim = { monster_large_anim_keys, 2 };static unsigned short arrow_anim_key0_sprite_data[] = {
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,11,0,0,0,11,11,11,11,11,11,0,0,11,11,11,11,11,11,11,0,11,11,11,11,11,11,0,0,0,0,0,0,11,0,0,0,0,0,0,0,0,0,0,0,};
+static Sprite arrow_anim_key0_sprite = {0, 8, 8, arrow_anim_key0_sprite_data
+};
+AnimKey arrow_anim_key0 = {&arrow_anim_key0_sprite, 50};
+static unsigned short arrow_anim_key1_sprite_data[] = {
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,11,0,0,0,11,11,11,11,11,11,0,0,11,11,11,11,11,11,11,0,11,11,11,11,11,11,0,0,0,0,0,0,11,0,0,0,0,0,0,0,0,0,0,};
+static Sprite arrow_anim_key1_sprite = {0, 8, 8, arrow_anim_key1_sprite_data
+};
+AnimKey arrow_anim_key1 = {&arrow_anim_key1_sprite, 50};
+AnimKey arrow_anim_keys[] = {
+arrow_anim_key0,
+arrow_anim_key1,
+};
+SpriteAnim arrow_anim = { arrow_anim_keys, 2 };rgb15 paletteColors[] = {
 0,32767,9513,4607,4221,991,30336,1625,543,9924,3990,25895,4775,1855,10743,6512,5356,};
