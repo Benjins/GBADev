@@ -4,5 +4,5 @@ source ~/.bashrc
 
 for i in "${projects[@]}"
 do
-   ./build.sh "$i"
+   ./travis_build_project.sh "$i"
 done
