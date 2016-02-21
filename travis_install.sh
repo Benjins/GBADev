@@ -6,10 +6,3 @@ echo "export DEVKITPRO=$wd/devkitpro" >> ~/.bashrc
 echo "export DEVKITARM=$wd/devkitpro/devkitARM" >> ~/.bashrc
 echo "export PATH=$PATH:$wd/devkitpro/devkitARM/bin" >> ~/.bashrc
 source ~/.bashrc
-
-echo ".bashrc looks like:"
-cat ~/.bashrc
-
-echo "DEVKITARM is set to: '$DEVKITARM'"
-
-echo "PATH is set to: '$PATH'"
