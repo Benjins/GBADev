@@ -378,9 +378,9 @@ void ParseMidiFile(const char* fileName, char* varName, FILE* midiAssetHeader){
 		
 		short pitch = (96*60)/pitches[pitchIdx];
 		
-		printf("Note '%d' at '%d' for length '%d'\n", pitch, cycleStart, cycleLength);
+		printf("Note '%d' at '%d' for length '%d'\n", pitch, (int)cycleStart, (int)cycleLength);
 		
-		fprintf(midiAssetHeader, "{%d, %d, %d}, ", cycleStart, cycleLength, pitch);
+		fprintf(midiAssetHeader, "{%d, %d, %d}, ", (int)cycleStart, (int)cycleLength, pitch);
 		
 		if(i % 5 == 4){
 			fprintf(midiAssetHeader, "\n");

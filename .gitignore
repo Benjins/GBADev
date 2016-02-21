@@ -10,3 +10,8 @@
 .vs/
 *.ilk
 *.pdb
+*.out
+
+#autosaves
+*~
+*.bak
