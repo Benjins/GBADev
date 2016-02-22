@@ -50,7 +50,6 @@ BackgroundAsset ParseBGAssetFile(char* fileName) {
 
 	const char* whitespace = "\n\r\t ";
 	const char* spaceAndColon = "\t :";
-	const char* spaceAndComma = "\t ,";
 
 	if (bgFile != NULL) {
 		fseek(bgFile, 0, SEEK_END);

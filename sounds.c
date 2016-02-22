@@ -18,7 +18,7 @@ int lengthNotContaining(const char* str, const char* key);
 
 int _memcmp(const void* p1, const void* p2, int length);
 
-int _memcpy(void* dest, const void* src, int length);
+void _memcpy(void* dest, const void* src, int length);
 
 byte* ReadEntireFile(char* fileName, int* outFileLength, bool writeZero){
 	FILE* soundsFile = fopen(fileName, "rb");
@@ -59,7 +59,7 @@ int main(int argc, char** argv){
 	sprintf(soundsFileName, "%s/sounds.txt", dirName);
 	
 	int fileLength = 0;
-	byte* fileBuffer = ReadEntireFile(soundsFileName, &fileLength, true);
+	char* fileBuffer = (char*)ReadEntireFile(soundsFileName, &fileLength, true);
 	
 	if(fileBuffer == NULL){
 		return 0;
@@ -293,7 +293,7 @@ int _memcmp(const void* p1, const void* p2, int length){
 	return 0;
 }
 
-int _memcpy(void* dest, const void* src, int length){
+void _memcpy(void* dest, const void* src, int length){
 	byte* _dest = (byte*)dest;
 	byte* _src  = (byte*)src;
 	

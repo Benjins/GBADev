@@ -233,8 +233,6 @@ int main(int argc, char** argv){
 		AnimAsset animAsset = {};
 		ReadAnimAssetFile(&animAsset, "anim.txt", argv[1], strlen(argv[1]));
 		
-		Token dirName = {argv[1], strlen(argv[1])};
-		
 		for(int i = 0; i < animAsset.animClipCount; i++){
 			
 			char* animName = animAsset.animClips[i].name;

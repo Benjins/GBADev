@@ -45,7 +45,7 @@ int lengthNotContaining(const char* str, const char* key);
 #define true 1
 #define false 0
 
-int _memcpy(void* dest, const void* src, int length){
+void _memcpy(void* dest, const void* src, int length){
 	byte* _dest = (byte*)dest;
 	byte* _src  = (byte*)src;
 	
@@ -249,8 +249,6 @@ void ParseMidiFile(const char* fileName, char* varName, FILE* midiAssetHeader){
 			
 			byte* chunkStart = fileCursor;
 			
-			byte prevEventType = 0;
-			
 			byte prevStatus = 0;
 			while(fileCursor - chunkStart < chunkLength){
 				int varBytes = 0;
@@ -316,7 +314,6 @@ void ParseMidiFile(const char* fileName, char* varName, FILE* midiAssetHeader){
 						fileCursor--;
 					}
 					
-					int channel = eventType & 0x0F;
 					int msgType = (eventType & 0x70) >> 4;
 					
 					if(msgType == NOTE_ON){
@@ -361,8 +358,6 @@ void ParseMidiFile(const char* fileName, char* varName, FILE* midiAssetHeader){
 	for(int i = 0; i < allNoteCount; i++){
 		int ticksPerQuarter = header.deltaTimeDivision;
 		int noteTicks = allNotes[i].length;
-		int samplesPerClock = 96;
-		int clocksPerSecond = 60;
 		
 		long cycleLength = (long)noteTicks * (long)microSecsPerQuarterNote * 60 * 96;
 		cycleLength /= ticksPerQuarter;

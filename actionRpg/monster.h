@@ -85,7 +85,7 @@ void UpdateMonsters(Monster* monsters, int monsterCount, TimerList* timers, int 
 			int moveVec[2] = {};
 			if(playerDistSqr <= fightDistSqr){
 				monsters[i].currState = FIGHT;
-				monsters[i].timerId = AddTimer(timers, 60);
+				monsters[i].timerId = AddTimer(timers, 20);
 			}
 			else if(playerDistSqr >= chaseEndDistSqr){
 				monsters[i].timerId = AddTimer(timers, 20);
