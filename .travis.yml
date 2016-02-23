@@ -3,17 +3,6 @@ language: cpp
 compiler:
   - g++
 
-matrix:
-  allow_failures:
-    - os: osx
-  exclude:
-    - os: osx
-      compiler: g++
-
-env:
-  global:
-    - "FTP_USER=bnsmith"
-
 before_install:
   - chmod +x *.sh
   - ./travis_install.sh
@@ -23,8 +12,8 @@ before_script:
   - mkdir build
 
 script: 
-  - ./build-tiles.sh
-  - ./travis_build.sh
+  - . ./build-tiles.sh
+  - . ./travis_build.sh
 
 after_success:
   - cd ${TRAVIS_BUILD_DIR}
