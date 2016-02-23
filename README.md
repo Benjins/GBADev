@@ -3,6 +3,8 @@ GBADev: The repository where I make GBA games.
 Or at least I try to...
 ---------------------------
 
+Build Status: [![Build Status](https://travis-ci.org/Benjins/GBADev.svg?branch=master)](https://travis-ci.org/Benjins/GBADev)
+
 These demos are built using [devKitPro](http://devkitpro.org/), using a small bit of their libgba library to initialize the games.  Other than that, the code is freestanding.
 
 A lot of the code is heavily inspired by the Tonc tutorials on [Coranac](http://www.coranac.com/tonc/text/toc.htm), which are created by [Jasper Vijn](http://www.coranac.com).  However, this code does not link against the Tonc libraries, or any of Vijn's code. 
