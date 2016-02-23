@@ -16,6 +16,7 @@ typedef enum{
 
 typedef struct{
 	int position[2];
+	int health;
 	MonsterState currState;
 	int timerId;
 } Monster;
@@ -85,10 +86,10 @@ void UpdateMonsters(Monster* monsters, int monsterCount, TimerList* timers, int 
 			int moveVec[2] = {};
 			if(playerDistSqr <= fightDistSqr){
 				monsters[i].currState = FIGHT;
-				monsters[i].timerId = AddTimer(timers, 20);
+				monsters[i].timerId = AddTimer(timers, 40);
 			}
 			else if(playerDistSqr >= chaseEndDistSqr){
-				monsters[i].timerId = AddTimer(timers, 20);
+				monsters[i].timerId = AddTimer(timers, (GetRandom() % 20) + 30);
 				monsters[i].currState = (MonsterState)(PATROL_FIRST + (GetRandom() % PATROL_LAST - PATROL_FIRST));
 			}
 			else if(abs(playerDir[0]) > abs(playerDir[1])){
@@ -109,6 +110,7 @@ void UpdateMonsters(Monster* monsters, int monsterCount, TimerList* timers, int 
 			if(IsTimerDone(timers, monsters[i].timerId)){
 				if(playerDistSqr <= fightDistSqr){
 					shouldEnterCombat = 1;
+					currentMonsterFight = i;
 				}
 				
 				monsters[i].currState = SEEK;

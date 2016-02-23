@@ -241,6 +241,7 @@ typedef enum {
 
 GameMode currMode = FREEWALK;
 
+int currentMonsterFight = -1;
 int shouldEnterCombat = 0;
 int shouldExitCombat = 0;
 
@@ -254,13 +255,19 @@ AnimationList anims = {};
 Monster monsters[MAX_MONSTER_COUNT];
 int monsterCount = 0;
 
-void AddMonster(int x, int y){
+void AddMonster(int x, int y, int health){
 	monsters[monsterCount].position[0] = x;
 	monsters[monsterCount].position[1] = y;
 	monsters[monsterCount].timerId = AddTimer(&timers, (GetRandom() % 20) + 30);
 	monsters[monsterCount].currState = PAUSE;
+	monsters[monsterCount].health = health;
 	
 	monsterCount++;
+}
+
+void RemoveMonster(int idx){
+	monsters[idx] = monsters[monsterCount-1];
+	monsterCount--;
 }
 
 Sprite playerDirections[DIR_COUNT] = {playerSpriteUp, playerSpriteDown, playerSpriteLeft, playerSpriteRight};
@@ -299,6 +306,10 @@ MenuOption combatMenu[] = {{"Attack", ATTACK}, {"Run", RUN}};
 int combatMenuIndex = 0;
 
 void EnterCombat(){
+	if(currentMonsterFight < 0 || currentMonsterFight >= monsterCount){
+		return;
+	}
+	
 	for(int i = 0; i < 128; i++){
 		oam_memory[i].attribute_zero = 0;
 		oam_memory[i].attribute_one = 0;
@@ -433,10 +444,10 @@ int main(void) {
 	AddObject(180, 90, "god is dead");
 	AddObject(70, 120, "who is john galt");
 	
-	AddMonster(-20, 90);
-	AddMonster(50, 190);
-	AddMonster(120, 50);
-	AddMonster(20, 50);
+	AddMonster(-20, 90, 20);
+	AddMonster(50, 190, 22);
+	AddMonster(120, 50, 23);
+	AddMonster(20, 50, 18);
 		
 	// Set the display parameters to enable objects, and use a 1D object->tile mapping, and enable BG0
 	REG_DISPLAY = 0x1000 | 0x0040 | 0x0100;
@@ -459,7 +470,6 @@ int main(void) {
 	int combatId = -1;
 	
 	while (1) {
-		//VBlankIntrWait();
 		asm("swi 0x05");
 		
 		if(shouldEnterCombat){
@@ -642,7 +652,12 @@ int main(void) {
 				CombatOption effect = combatMenu[combatMenuIndex].effect;
 				
 				if(effect == ATTACK){
-					//TODO...
+					monsters[currentMonsterFight].health--;
+					
+					if(monsters[currentMonsterFight].health <= 0){
+						RemoveMonster(currentMonsterFight);
+						shouldExitCombat = 1;
+					}
 				}
 				else if(effect == RUN){
 					shouldExitCombat = 1;
