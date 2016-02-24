@@ -63,7 +63,7 @@ void NoramlizeAnimClip(AnimClip* clip){
 	}
 }
 
-void ReadAnimAssetFile(AnimAsset* asset, char* fileName, char* dirName, int dirLength){
+void ReadAnimAssetFile(AnimAsset* asset, const char* fileName, const char* dirName, int dirLength){
 	char fullFileName[256] = {};
 	sprintf(fullFileName, "%.*s/%s", dirLength, dirName, fileName);
 	
@@ -153,7 +153,7 @@ void ReadAnimAssetFile(AnimAsset* asset, char* fileName, char* dirName, int dirL
 	free(fileBuffer);
 }
 
-void SaveAnimAssetFile(AnimAsset* asset, char* fileName){
+void SaveAnimAssetFile(AnimAsset* asset, const char* fileName){
 	FILE* animAssetFile = fopen(fileName, "wb");
 	
 	for(int i = 0; i < asset->animClipCount; i++){
