@@ -18,7 +18,7 @@ void DrawBox(BitmapData bitmap, int x, int y, int w, int h, int col);
 void DrawBitmap(BitmapData bitmap, int x, int y, int w, int h, BitmapData sprite);
 
 //If the text goes outside the box, it'll be truncated
-void DrawText(BitmapData bitmap, char* text, int x, int y, int width, int height);
+void DrawText(BitmapData bitmap, const char* text, int x, int y, int width, int height);
 
 void Render(BitmapData frameBuffer);
 

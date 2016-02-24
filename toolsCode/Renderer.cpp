@@ -158,11 +158,11 @@ bool Button(BitmapData frameBuffer, int x, int y, int w, int h, int offCol, int 
 	return mouseIsOver && (mouseState == 1);
 }
 
-void DrawText(BitmapData bitmap, char* text, int x, int y, int width, int height) {
+void DrawText(BitmapData bitmap, const char* text, int x, int y, int width, int height) {
 	int currX = x;
 	int currY = y;
 	
-	char* currChar = text;
+	const char* currChar = text;
 	while(currChar && *currChar){
 		
 		int fontIdx = *currChar - 32;
