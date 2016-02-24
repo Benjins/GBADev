@@ -13,6 +13,7 @@ before_script:
 
 script: 
   - . ./build-tiles.sh
+  - . ./build-anim.sh
   - . ./travis_build.sh
 
 after_success:

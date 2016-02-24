@@ -1,0 +1,1 @@
+g++ -std=c++0x toolsCode/Renderer.cpp toolsCode/x11_main.cpp animer/main.cpp -o animer.out -lX11
