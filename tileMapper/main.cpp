@@ -4,9 +4,9 @@
 
 #undef DrawText
 
-#include "Renderer.h"
-#include "Timer.h"
-#include "openfile.h"
+#include "../toolsCode/Renderer.h"
+#include "../toolsCode/Timer.h"
+#include "../toolsCode/openfile.h"
 
 #define TILE_INDEX_MULTIPLIER 24
 

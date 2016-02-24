@@ -5,10 +5,11 @@
 #include <string.h>
 #include <math.h>
 
+//Windows doesn't like our function name
 #undef DrawText
 
-#include "Renderer.h"
-#include "Timer.h"
+#include "../toolsCode/Renderer.h"
+#include "../toolsCode/Timer.h"
 
 #define TILE_INDEX_MULTIPLIER 24
 
