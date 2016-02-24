@@ -20,7 +20,9 @@ void DrawBitmap(BitmapData bitmap, int x, int y, int w, int h, BitmapData sprite
 //If the text goes outside the box, it'll be truncated
 void DrawText(BitmapData bitmap, const char* text, int x, int y, int width, int height);
 
-void Render(BitmapData frameBuffer);
+#define MAX_TEXT_BOX_COUNT 256
+
+bool TextBox(BitmapData bitmap, char* text, int bufferLength, int x, int y, int width, int height);
 
 void InitText(const char* fileName, int size);
 

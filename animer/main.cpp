@@ -119,6 +119,9 @@ void Init(){
 	}
 }
 
+char textBuffer[256] = {};
+char textBuffer2[256] = {};
+
 void RunFrame(){
 
 	float deltaTime = (float)timer.GetTimeSince();
@@ -149,6 +152,15 @@ void RunFrame(){
 	//DrawText(frameBuffer, timeStr, 400, 400, 500, 100);
 	
 	DrawBox(frameBuffer, 20, frameBuffer.height - 40, frameBuffer.width - 220, 30, white);
+	
+	int textBox = 0;
+	if(TextBox(frameBuffer, textBuffer, sizeof(textBuffer), 500, 200, 100, 30)){
+		textBox = 1;
+	}
+	if(TextBox(frameBuffer, textBuffer2, sizeof(textBuffer2), 500, 260, 100, 30)){
+		textBox = 1;
+	}
+	
 	
 	int frameLength = 0;
 	for(int i = 0; i < animAsset.animClips[animClipIndex].keyFrameCount; i++){

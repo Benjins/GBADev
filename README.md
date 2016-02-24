@@ -40,3 +40,4 @@ TODO:
    - Save button in gui, not just 'W'
  * ~~Export header from animations file~~
  * Keep track of sprites exported in asset.h, prevent dupes
+ * Remove Animations and Timers

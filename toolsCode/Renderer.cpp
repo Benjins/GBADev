@@ -53,6 +53,15 @@ typedef struct __attribute((packed))__{
 } BitMapHeader;
 #endif
 
+enum KeyState {
+	OFF = 0,
+	RELEASE = 1,
+	PRESS = 2,
+	HOLD = 3
+};
+
+extern KeyState keyStates[256];
+
 #define STB_TRUETYPE_IMPLEMENTATION  // force following include to generate implementation
 #include "stb_truetype.h"
 
@@ -211,8 +220,72 @@ void DrawText(BitmapData bitmap, const char* text, int x, int y, int width, int 
 	}
 }
 
-void Render(BitmapData frameBuffer) {
+char* textBoxBufferList[256] = {};
+int textBoxCount = 0;
+int currentSelectedIndex = -1;
 
+bool TextBox(BitmapData bitmap, char* text, int bufferLength, int x, int y, int width, int height){
+	int mouseIsOver = 0;
+	if(currMouseX > x && currMouseX < x + width
+	&& currMouseY > y && currMouseY < y + height){
+		mouseIsOver = 1;
+	}
+	
+	int isSelected = 0;
+	
+	int listIndex = -1;
+	for(int i = 0; i < textBoxCount; i++){
+		if(textBoxBufferList[i] == text){
+			listIndex = i;
+			break;
+		}
+	}
+	
+	if(listIndex == -1){
+		listIndex = textBoxCount;
+		textBoxBufferList[listIndex] = text;
+		textBoxCount++;
+	}
+	
+	if(listIndex == currentSelectedIndex){
+		if(!mouseIsOver && (mouseState == 1)){
+			currentSelectedIndex = -1;
+		}
+		else if(keyStates[27] == 1 || keyStates[13] == 1){
+			currentSelectedIndex = -1;
+		}
+	}
+	else{
+		if(mouseIsOver && (mouseState == 1)){
+			currentSelectedIndex = listIndex;
+		}
+	}
+	
+	if(listIndex == currentSelectedIndex){
+		for(char i = 32; i < 127; i++){
+			if(keyStates[i] == 1){
+				char* cursor = text + strlen(text);
+				if(i == '\b' && cursor > text){
+					*(cursor-1) = '\0';
+				}
+				else if(cursor - text < bufferLength){
+					cursor[0] = i;
+					cursor[1] = '\0';
+				}
+			}
+		}
+	}
+	
+	for(int j = y; j < y + height; j++){
+		for(int i = x; i < x + width; i++){
+			int frameIdx = (bitmap.height - 1 - j)*bitmap.width+i;
+			bitmap.data[frameIdx] = 0x66666666;
+		}
+	}
+	
+	DrawText(bitmap, text, x, y, width, height);
+	
+	return (listIndex == currentSelectedIndex );
 }
 
 BitmapData LoadBMPFile(const char* fileName) {
