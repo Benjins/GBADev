@@ -132,7 +132,7 @@ void DrawBitmap(BitmapData bitmap, int x, int y, int w, int h, BitmapData sprite
 	}
 }
 
-bool Button(BitmapData frameBuffer, int x, int y, int w, int h, int offCol, int hoverCol, int pressCol, char* label){
+bool Button(BitmapData frameBuffer, int x, int y, int w, int h, int offCol, int hoverCol, int pressCol, const char* label){
 	int mouseIsOver = 0;
 	if(currMouseX > x && currMouseX < x + w
 	&& currMouseY > y && currMouseY < y + h){

@@ -24,7 +24,7 @@ void Render(BitmapData frameBuffer);
 
 void InitText(const char* fileName, int size);
 
-bool Button(BitmapData frameBuffer, int x, int y, int w, int h, int offCol, int hoverCol, int pressCol, char* label);
+bool Button(BitmapData frameBuffer, int x, int y, int w, int h, int offCol, int hoverCol, int pressCol, const char* label);
 
 BitmapData LoadBMPFile(const char* fileName);
 
