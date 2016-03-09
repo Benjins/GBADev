@@ -25,7 +25,7 @@ The code will compile as is.  However, any changes to art assets will require ru
 
 ~~The tileMapper program is Windows-specific, and will not run on Mac/Linux without heavy modification.~~
 
-The tileMapper and animer programs used to be Windows-specific.  As of now, tileMapper can run on Linux through the X11 libraries.  However, the open file dialog has not been ported.
+The tileMapper and animer programs used to be Windows-specific.  As of now, tileMapper can also run on Linux through the X11 libraries.  However, the open file dialog has not been ported.
 
 TODO:
  * Finish up DirectSound work
@@ -42,3 +42,4 @@ TODO:
  * Keep track of sprites exported in asset.h, prevent dupes
  * Way in code to remove Animations and Timers
  * Define entity data in code, parse it to manifest in editor
+ * Improve palette gen to actually get 256 colours

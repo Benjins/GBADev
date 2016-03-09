@@ -14,15 +14,13 @@ typedef enum{
 	FIGHT
 } MonsterState;
 
+/*[GameEntity]*/
 typedef struct{
 	int position[2];
-} MonsterBase;
-
-struct Monster : MonsterBase{
 	int health;
 	MonsterState currState;
 	int timerId;
-};
+} Monster;
 
 inline void ResolveCollisions(int* startPos, int* moveDir, int* outPos){
 	static const int offsetVec[2] = {SCREEN_WIDTH/2, SCREEN_HEIGHT/2};

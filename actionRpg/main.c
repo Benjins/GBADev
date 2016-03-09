@@ -18,7 +18,7 @@ typedef struct object_attributes {
 	uint16 attribute_one;
 	uint16 attribute_two;
 	uint16 pad;
-} __attribute__((aligned(4))) object_attributes;
+} object_attributes __attribute__((aligned(4))) ;
 typedef uint32 tile4bpp[8];
 typedef tile4bpp tile_block[512];
 
@@ -71,10 +71,11 @@ typedef uint16 SCREENBLOCK[1024];
 
 #define ARRAY_LENGTH(x) (sizeof(x)/sizeof((x)[0]))
 
+/*[GameEntity]*/
 typedef struct {
 	int16 position[2];
 	const char* whatSay;
-} __attribute__((aligned(4))) object;
+} object;
 
 #define MAX_OBJECT_COUNT 10
 object objects[MAX_OBJECT_COUNT];

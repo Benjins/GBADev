@@ -17,10 +17,7 @@
 
 #define SAFE_FREE(x) {if(x){free(x); (x) = nullptr;}}
 
-typedef struct {
-	char* start;
-	int length;
-}Token;
+#include "../metaGenTool/metaParse.c"
 
 inline float clamp(float val, float min, float max) {
 	return MIN(max, MAX(min, val));
@@ -73,6 +70,9 @@ int bgSpriteCount = 0;
 const char* arg1Str = "";
 int arg1Length = 0;
 
+EnumDefVector enumDefs = {0};
+StructDefVector structDefs = {0};
+
 void MouseDown(int mouseX, int mouseY);
 
 void AddBackgroundSprite(BackgroundAsset* bgAsset, BitmapData** bgSpriteList, int* bgSpriteCount, const char* fileName, const char* dirName, int dirNameLength){
@@ -107,7 +107,7 @@ void AddBackgroundSprite(BackgroundAsset* bgAsset, BitmapData** bgSpriteList, in
 
 void Init(){
 	char backgroundAssetFileName[256] = {};
-	int backgroundAssetFileNameLength = snprintf(backgroundAssetFileName, 256, "%.*s/background.txt", arg1Length, arg1Str);
+	snprintf(backgroundAssetFileName, 256, "%.*s/background.txt", arg1Length, arg1Str);
 	
 	bgAsset = ParseBGAssetFile(backgroundAssetFileName);
 	
@@ -128,26 +128,34 @@ void Init(){
 			bgSpriteCount--;
 		}
 	}
-}
 	
-	//InitText("C:/Program Files/Java/jdk1.8.0_65/jre/lib/fonts/LucidaSansRegular.ttf", 18);
+	char mainCodeFileName[256] = {};
+	snprintf(mainCodeFileName, 256, "%.*s/main.c", arg1Length, arg1Str);
+	
+	MetaParseFile(mainCodeFileName, &enumDefs, &structDefs);
+}
 
 void RunFrame(){
-
-	/*
-	double deltaTime = timer.GetTimeSince();
-	timer.Reset();
-	char timeStr[256] = {};
-	snprintf(timeStr, 255, "Time this frame: %3.3f ms\n", deltaTime*1000);
-	*/
 	BitmapData frameBuffer = { (int*)bitmapData, frameWidth, frameHeight };
 	
 	if(mouseState > 1){
 		MouseDown(currMouseX, currMouseY);
 	}
 
-	
 	memset(bitmapData, 0, frameBuffer.width*frameBuffer.height * 4);
+
+	Token gameEntTok = MAKE_TOKEN(GameEntity);
+
+	int gameEntCount = 0;
+	for (int i = 0; i < structDefs.length; i++) {
+		int attrIdx = FindAttribute(structDefs.vals[i].attrs, gameEntTok);
+		if (attrIdx >= 0) {
+			char nameBuffer[32] = { 0 };
+			snprintf(nameBuffer, 32, "%.*s", structDefs.vals[i].name.length, structDefs.vals[i].name.start);
+			DrawText(frameBuffer, nameBuffer, frameBuffer.width - 170, 20 + gameEntCount*16, 160, 16);
+			gameEntCount++;
+		}
+	}
 
 	float rowCount = (frameBuffer.height - 48) / 16 / zoomLevel;
 	float colCount = (frameBuffer.width - 180)  / 16 / zoomLevel;
