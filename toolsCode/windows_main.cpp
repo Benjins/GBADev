@@ -16,7 +16,7 @@ enum KeyState {
 };
 
 inline KeyState StateFromBools(bool wasDown, bool isDown) {
-	return (KeyState)((wasDown ? 2 : 0) | (isDown ? 1 : 0));
+	return (KeyState)((wasDown ? 1 : 0) | (isDown ? 2 : 0));
 }
 
 extern KeyState keyStates[256];

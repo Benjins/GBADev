@@ -14,7 +14,7 @@ typedef enum{
 	FIGHT
 } MonsterState;
 
-/*[GameEntity]*/
+/*[GameEntity("monster.bmp")]*/
 typedef struct{
 	int position[2];
 	int health;

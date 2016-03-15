@@ -29,8 +29,11 @@ The tileMapper and animer programs used to be Windows-specific.  As of now, tile
 
 TODO:
  * Finish up DirectSound work
- * Make tileMapper support multiple backgrounds
- * Make level editor for topDown
+ * TileMapper:
+   - Make support for multiple backgrounds
+   - Level editor level editor for topDown
+   - Define entity data in code, parse it to create manifest
+   - Properly clamp background map so it doesn't jump per tile at edges.
  * Some kind of debugging method
  * Animation tool:
    - ~~Normalize/canonicalize animations, prevent negative key durations~~
@@ -41,5 +44,4 @@ TODO:
  * ~~Export header from animations file~~
  * Keep track of sprites exported in asset.h, prevent dupes
  * Way in code to remove Animations and Timers
- * Define entity data in code, parse it to manifest in editor
  * Improve palette gen to actually get 256 colours

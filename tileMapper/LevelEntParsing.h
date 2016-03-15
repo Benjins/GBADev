@@ -92,7 +92,7 @@ LevelEntityInstancesVector ReadLevelEntsFromFile(const char* fileName, StructDef
 		}
 
 		LevelEntityInstances instanceList = { 0 };
-		instanceList.name = gameEntStruct->name;
+		instanceList.name = entFieldName;
 		instanceList.maxCount = maxCount;
 
 		if (*stream.cursor == ':') {

@@ -108,6 +108,55 @@ void AddBackgroundSprite(BackgroundAsset* bgAsset, BitmapData** bgSpriteList, in
 	(*bgSpriteCount)++;
 }
 
+int levelStructIdx = -1;
+
+int FindStructDefByName(Token name) {
+	for (int i = 0; i < structDefs.length; i++) {
+		if (TokenEqual(structDefs.vals[i].name, name)) {
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+void AddGameEntityAtPosition(LevelEntityInstances* gameEnts, int x, int y) {
+	if (gameEnts->instances.length < gameEnts->maxCount) {
+		GameEntityInstance newInst = { 0 };
+		newInst.position[0] = x;
+		newInst.position[1] = y;
+
+		for (int i = 0; i < structDefs.vals[levelStructIdx].fields.length; i++) {
+			FieldDef fieldDef = structDefs.vals[levelStructIdx].fields.vals[i];
+
+			if (TokenEqual(fieldDef.fieldName, gameEnts->name)) {
+				int defIdx = FindStructDefByName(fieldDef.typeName);
+
+				FieldDefVector entFields = structDefs.vals[defIdx].fields;
+				for (int j = 0; j < entFields.length; i++) {
+					FieldValue val = { 0 };
+					val.type = MetaOther;
+					val.name = entFields.vals[j].fieldName;
+
+					Token fieldType = entFields.vals[j].typeName;
+					if (TOKEN_IS(fieldType, "char") && entFields.vals[j].pointerLevel == 1) {
+						val.type = MetaString;
+					}
+					else if (TOKEN_IS(fieldType, "int")) {
+						val.type = MetaInt;
+					}
+
+					if (val.type != MetaOther) {
+						VectorAddFieldValue(&newInst.otherVals, val);
+					}
+				}
+			}
+		}
+		
+		VectorAddGameEntityInstance(&gameEnts->instances, newInst);
+	}
+}
+
 unsigned int missingIconData[9] = {  0xFFEE3333, 0xFFEE3333, 0xFFEE3333,
 							0xFFEE3333, 0xFF3333EE, 0xFFEE3333,
 							0xFFEE3333, 0xFFEE3333, 0xFFEE3333 };
@@ -146,7 +195,6 @@ void Init(){
 	Token gameEntToken = MAKE_TOKEN(GameEntity);
 	Token levelToken = MAKE_TOKEN(Level);
 
-	int levelStructIdx = -1;
 	for (int i = 0; i < structDefs.length; i++) {
 		if (FindAttribute(structDefs.vals[i].attrs, levelToken) != -1) {
 			levelStructIdx = i;
@@ -200,11 +248,14 @@ void Init(){
 
 		for (int j = 0; j < structDefs.length; j++) {
 			if (TokenEqual(structDefs.vals[j].name, typeName)) {
-				int gameEntAttrIdx = FindAttribute(structDefs.vals[i].attrs, gameEntToken);
+				int gameEntAttrIdx = FindAttribute(structDefs.vals[j].attrs, gameEntToken);
 				char iconFilePath[256] = { 0 };
-				Token attrParam = structDefs.vals[i].attrs.vals[gameEntAttrIdx].attrParams.vals[0];
-				snprintf(iconFilePath, sizeof(iconFilePath), "%.*s/%.*s", arg1Length, arg1Str, attrParam.length, attrParam.start);
+				Token attrParam = structDefs.vals[j].attrs.vals[gameEntAttrIdx].attrParams.vals[0];
+				snprintf(iconFilePath, sizeof(iconFilePath), "%.*s/%.*s", arg1Length, arg1Str, attrParam.length-2, attrParam.start+1);
 				levelInstance.vals[i].icon = LoadBMPFile(iconFilePath);
+				if (levelInstance.vals[i].icon.data == NULL) {
+					levelInstance.vals[i].icon = missingIcon;
+				}
 				break;
 			}
 		}
@@ -224,8 +275,14 @@ void RunFrame(){
 
 	for (int i = 0; i < levelInstance.length; i++) {
 		char nameBuffer[32] = { 0 };
-		snprintf(nameBuffer, 32, "%.*s", levelInstance.vals[i].name.length, levelInstance.vals[i].name.start);
+		snprintf(nameBuffer, 32, "%.*s (%d/%d)", levelInstance.vals[i].name.length, levelInstance.vals[i].name.start,
+			levelInstance.vals[i].instances.length, levelInstance.vals[i].maxCount);
 		DrawText(frameBuffer, nameBuffer, frameBuffer.width - 170, 20 + i * 16, 160, 16);
+
+		if (Button(frameBuffer, frameBuffer.width - 30, 4 + i * 16, 16, 16, 0, 0, 0, "")) {
+			AddGameEntityAtPosition(&levelInstance.vals[i], 20 + xOffset, 20 + yOffset);
+		}
+
 		DrawBitmap(frameBuffer, frameBuffer.width - 30, 4 + i * 16, 16, 16, levelInstance.vals[i].icon);
 	}
 
@@ -258,7 +315,7 @@ void RunFrame(){
 
 	int* frameMem = (int*)frameBuffer.data;
 
-	if(backMapX >= 0 && backMapX < backMap.width && backMapY >= 0 && backMapY < backMap.height){
+	if(backMapX >= 0 && backMapX < backMap.width && backMapY >= 0 && backMapY < backMap.height && currMouseX < frameBuffer.width - 180){
 		int xMin = backMapX * tileSize  - xOffset;
 		int xMax = (backMapX+1) * tileSize  - xOffset;
 		int yMin = backMapY * tileSize  - yOffset;
@@ -274,6 +331,18 @@ void RunFrame(){
 				int frameIdx = (frameBuffer.height - j - 1)*frameBuffer.width+i;
 				frameMem[frameIdx] ^= 0xFFFFFF;
 			}
+		}
+	}
+
+	for (int i = 0; i < levelInstance.length; i++) {
+		for (int j = 0; j < levelInstance.vals[i].instances.length; j++) {
+			int* pos = levelInstance.vals[i].instances.vals[j].position;
+
+			int newPos[2] = { (int)(pos[0]*zoomLevel - xOffset), (int)(pos[1]*zoomLevel - yOffset) };
+
+			int size = (int)(16 * zoomLevel);
+
+			DrawBitmap(frameBuffer, newPos[0], newPos[1], size, size, levelInstance.vals[i].icon);
 		}
 	}
 

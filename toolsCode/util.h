@@ -148,7 +148,7 @@ int _atoi(const char* str){
 	}
 	
 	int value = 0;
-	while(cursor && *cursor > '0' && *cursor < '9'){
+	while(cursor && *cursor >= '0' && *cursor <= '9'){
 		value *= 10;
 		value += (*cursor - '0');
 		cursor++;
