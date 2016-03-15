@@ -70,8 +70,12 @@ int bgSpriteCount = 0;
 const char* arg1Str = "";
 int arg1Length = 0;
 
+#include "LevelEntParsing.h"
+
 EnumDefVector enumDefs = {0};
 StructDefVector structDefs = {0};
+
+LevelEntityInstancesVector levelInstance = { 0 };
 
 void MouseDown(int mouseX, int mouseY);
 
@@ -104,6 +108,11 @@ void AddBackgroundSprite(BackgroundAsset* bgAsset, BitmapData** bgSpriteList, in
 	(*bgSpriteCount)++;
 }
 
+unsigned int missingIconData[9] = {  0xFFEE3333, 0xFFEE3333, 0xFFEE3333,
+							0xFFEE3333, 0xFF3333EE, 0xFFEE3333,
+							0xFFEE3333, 0xFFEE3333, 0xFFEE3333 };
+BitmapData missingIcon = { (int*)missingIconData, 3, 3};
+
 
 void Init(){
 	char backgroundAssetFileName[256] = {};
@@ -133,6 +142,73 @@ void Init(){
 	snprintf(mainCodeFileName, 256, "%.*s/main.c", arg1Length, arg1Str);
 	
 	MetaParseFile(mainCodeFileName, &enumDefs, &structDefs);
+
+	Token gameEntToken = MAKE_TOKEN(GameEntity);
+	Token levelToken = MAKE_TOKEN(Level);
+
+	int levelStructIdx = -1;
+	for (int i = 0; i < structDefs.length; i++) {
+		if (FindAttribute(structDefs.vals[i].attrs, levelToken) != -1) {
+			levelStructIdx = i;
+			break;
+		}
+	}
+
+	//If we don't have a Level struct, we kind of can't do much
+	if (levelStructIdx == -1) {
+		return;
+	}
+
+	char levelFilePath[256] = { 0 };
+	snprintf(levelFilePath, sizeof(levelFilePath), "%.*s/level.txt", arg1Length, arg1Str);
+
+	FILE* levelFile = fopen(levelFilePath, "rb");
+
+	if (levelFile) {
+		fclose(levelFile);
+		levelInstance = ReadLevelEntsFromFile(levelFilePath, structDefs, &structDefs.vals[levelStructIdx]);
+	}
+	else {
+		for (int i = 0; i < structDefs.length; i++) {
+			int gameEntAttrIdx = FindAttribute(structDefs.vals[i].attrs, gameEntToken);
+			if (gameEntAttrIdx != -1) {
+				LevelEntityInstances inst = { 0 };
+				
+				for (int j = 0; j < structDefs.vals[levelStructIdx].fields.length; j++) {
+					FieldDef fieldDef = structDefs.vals[levelStructIdx].fields.vals[j];
+					if (TokenEqual(fieldDef.typeName, structDefs.vals[i].name)) {
+						inst.name = fieldDef.fieldName;
+						inst.maxCount = fieldDef.arrayCount;
+						VectorAddLevelEntityInstances(&levelInstance, inst);
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	for (int i = 0; i < levelInstance.length; i++) {
+		levelInstance.vals[i].icon = missingIcon;
+
+		Token typeName = { 0 };
+		for (int j = 0; j < structDefs.vals[levelStructIdx].fields.length; j++) {
+			if (TokenEqual(structDefs.vals[levelStructIdx].fields.vals[j].fieldName, levelInstance.vals[i].name)) {
+				typeName = structDefs.vals[levelStructIdx].fields.vals[j].typeName;
+				break;
+			}
+		}
+
+		for (int j = 0; j < structDefs.length; j++) {
+			if (TokenEqual(structDefs.vals[j].name, typeName)) {
+				int gameEntAttrIdx = FindAttribute(structDefs.vals[i].attrs, gameEntToken);
+				char iconFilePath[256] = { 0 };
+				Token attrParam = structDefs.vals[i].attrs.vals[gameEntAttrIdx].attrParams.vals[0];
+				snprintf(iconFilePath, sizeof(iconFilePath), "%.*s/%.*s", arg1Length, arg1Str, attrParam.length, attrParam.start);
+				levelInstance.vals[i].icon = LoadBMPFile(iconFilePath);
+				break;
+			}
+		}
+	}
 }
 
 void RunFrame(){
@@ -146,15 +222,11 @@ void RunFrame(){
 
 	Token gameEntTok = MAKE_TOKEN(GameEntity);
 
-	int gameEntCount = 0;
-	for (int i = 0; i < structDefs.length; i++) {
-		int attrIdx = FindAttribute(structDefs.vals[i].attrs, gameEntTok);
-		if (attrIdx >= 0) {
-			char nameBuffer[32] = { 0 };
-			snprintf(nameBuffer, 32, "%.*s", structDefs.vals[i].name.length, structDefs.vals[i].name.start);
-			DrawText(frameBuffer, nameBuffer, frameBuffer.width - 170, 20 + gameEntCount*16, 160, 16);
-			gameEntCount++;
-		}
+	for (int i = 0; i < levelInstance.length; i++) {
+		char nameBuffer[32] = { 0 };
+		snprintf(nameBuffer, 32, "%.*s", levelInstance.vals[i].name.length, levelInstance.vals[i].name.start);
+		DrawText(frameBuffer, nameBuffer, frameBuffer.width - 170, 20 + i * 16, 160, 16);
+		DrawBitmap(frameBuffer, frameBuffer.width - 30, 4 + i * 16, 16, 16, levelInstance.vals[i].icon);
 	}
 
 	float rowCount = (frameBuffer.height - 48) / 16 / zoomLevel;

@@ -3,17 +3,10 @@
 
 #include <stdio.h>
 
+#include "util.h"
+
 void* malloc(size_t);
 void free(void*);
-
-void _memcpy(void* _dest, const void* _src, int len){
-	char* dest = (char*)_dest;
-	const char* src = (const char*)_src;
-	
-	for(int i = 0; i < len; i++){
-		dest[i] = src[i];
- 	}
-}
 
 int _memeq(const void* a, const void* b, int len){
 	const char* s1 = (const char*)a;
@@ -39,28 +32,6 @@ int _streq(const char* s1, const char* s2){
 	}
 	
 	return (*s1 == *s2) ? 1 : 0;
-}
-
-int _strlen(const char* str){
-	int len = 0;
-	while(*str){
-		len++;
-		str++;
-	}
-	
-	return len;
-}
-
-int FindChar(const char* str, char c){
-	const char* cursor = str;
-	while(*cursor){
-		if(*cursor == c){
-			return (cursor - str);
-		}
-		cursor++;
-	}
-	
-	return -1;
 }
 
 int FindStr(const char* haystack, const char* needle){
@@ -108,11 +79,6 @@ int FindSubStr(const char* haystack, const char* needle, int length){
 		return (hCursor - haystack) - (nCursor - needle);
 	}
 }
-
-typedef struct{
-	char* start;
-	int length;
-} Token;
 
 char* AllocateStringFromToken(Token tok){
 	char* str = (char*)malloc(tok.length+1);
@@ -242,5 +208,17 @@ Token AdvanceLength(ParserStream* stream, int length){
 	return tok;
 }
 
+Token TrimToken(Token tok, const char* toTrim) {
+	while (tok.length > 0 && FindChar(toTrim, *tok.start)) {
+		tok.start++;
+		tok.length--;
+	}
+
+	while (tok.length > 0 && FindChar(toTrim, tok.start[tok.length-1])) {
+		tok.length--;
+	}
+
+	return tok;
+}
 
 #endif

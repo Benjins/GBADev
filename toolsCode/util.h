@@ -1,3 +1,6 @@
+#ifndef UTIL_H
+#define UTIL_H
+
 #include <stdio.h>
 
 void* malloc(size_t size);
@@ -310,3 +313,5 @@ void FreeBuffer(StrBuffer* buf){
 	free(buf->start);
 	buf->capacity = 0;
 }
+
+#endif

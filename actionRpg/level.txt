@@ -1,0 +1,4 @@
+monsters:
+    [{x:2,y:5}, {x:10,y:64}]
+objects:
+    [{x:17,y:29,whatSay:"Who am i"}, {x:55,y:123,whatSay:"This is maddd"}]

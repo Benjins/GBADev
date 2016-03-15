@@ -77,21 +77,9 @@ typedef struct {
 	const char* whatSay;
 } object;
 
-#define MAX_OBJECT_COUNT 10
-object objects[MAX_OBJECT_COUNT];
-
-int objectCount = 0;
-
-void AddObject(int x, int y, const char* whatSay){
-	objects[objectCount].position[0] = x;
-	objects[objectCount].position[1] = y;
-	objects[objectCount].whatSay = whatSay;
-	
-	objectCount++;
-}
-
 #define MAX_LETTER_COUNT 30
 #define MAX_TEXT_BOX_COUNT 31
+#define MAX_OBJECT_COUNT 10
 #define MAX_MONSTER_COUNT 20
 
 volatile object_attributes* uiTextAttribs = &oam_memory[0];
@@ -251,26 +239,6 @@ AnimationList anims = {};
 
 #include "monster.h"
 
-#define MAX_MONSTER_COUNT 20
-
-Monster monsters[MAX_MONSTER_COUNT];
-int monsterCount = 0;
-
-void AddMonster(int x, int y, int health){
-	monsters[monsterCount].position[0] = x;
-	monsters[monsterCount].position[1] = y;
-	monsters[monsterCount].timerId = AddTimer(&timers, (GetRandom() % 20) + 30);
-	monsters[monsterCount].currState = PAUSE;
-	monsters[monsterCount].health = health;
-	
-	monsterCount++;
-}
-
-void RemoveMonster(int idx){
-	monsters[idx] = monsters[monsterCount-1];
-	monsterCount--;
-}
-
 Sprite playerDirections[DIR_COUNT] = {playerSpriteUp, playerSpriteDown, playerSpriteLeft, playerSpriteRight};
 	
 const int player_height = 8, player_width = 8;
@@ -292,6 +260,42 @@ int bgTileOffsetY = -1;
 
 volatile uint16* monster_tile_memory = (uint16 *)tile_memory[4][13];
 
+/*[Level]*/
+typedef struct{
+	object objects[MAX_OBJECT_COUNT];
+	/*[ArrayCount("objects")]*/
+	int objectCount;
+	
+	Monster monsters[MAX_MONSTER_COUNT];
+	/*[ArrayCount("monsters")]*/
+	int monsterCount;
+} Level;
+
+Level level = {};
+
+void AddObject(int x, int y, const char* whatSay){
+	level.objects[level.objectCount].position[0] = x;
+	level.objects[level.objectCount].position[1] = y;
+	level.objects[level.objectCount].whatSay = whatSay;
+	
+	level.objectCount++;
+}
+
+void AddMonster(int x, int y, int health){
+	level.monsters[level.monsterCount].position[0] = x;
+	level.monsters[level.monsterCount].position[1] = y;
+	level.monsters[level.monsterCount].timerId = AddTimer(&timers, (GetRandom() % 20) + 30);
+	level.monsters[level.monsterCount].currState = PAUSE;
+	level.monsters[level.monsterCount].health = health;
+	
+	level.monsterCount++;
+}
+
+void RemoveMonster(int idx){
+	level.monsters[idx] = level.monsters[level.monsterCount-1];
+	level.monsterCount--;
+}
+
 typedef enum{
 	ATTACK,
 	RUN
@@ -307,7 +311,7 @@ MenuOption combatMenu[] = {{"Attack", ATTACK}, {"Run", RUN}};
 int combatMenuIndex = 0;
 
 void EnterCombat(){
-	if(currentMonsterFight < 0 || currentMonsterFight >= monsterCount){
+	if(currentMonsterFight < 0 || currentMonsterFight >= level.monsterCount){
 		return;
 	}
 	
@@ -582,15 +586,15 @@ int main(void) {
 				}
 			}
 			
-			UpdateMonsters(monsters, monsterCount, &timers, playerX, playerY, &playerHealth);
+			UpdateMonsters(level.monsters, level.monsterCount, &timers, playerX, playerY, &playerHealth);
 			
 			SetHealthSprite(player_health_memory, playerHealth);
 			
-			for(int i = 0; i < monsterCount; i++){
+			for(int i = 0; i < level.monsterCount; i++){
 				volatile object_attributes* monsterAttrib = &monsterAttribs[i];
 				
-				int screenX = monsters[i].position[0] - playerX + centerX;
-				int screenY = monsters[i].position[1] - playerY + centerY;
+				int screenX = level.monsters[i].position[0] - playerX + centerX;
+				int screenY = level.monsters[i].position[1] - playerY + centerY;
 				
 				if(screenX < -10 || screenX > SCREEN_WIDTH  + 10
 				|| screenY < -10 || screenY > SCREEN_HEIGHT + 10){
@@ -601,10 +605,10 @@ int main(void) {
 				}
 			}
 				
-			for(int i = 0; i < objectCount; i++){
+			for(int i = 0; i < level.objectCount; i++){
 				volatile object_attributes* objectAttrib = &objectAttribs[i];
-				int screenX = objects[i].position[0] - playerX + centerX;
-				int screenY = objects[i].position[1] - playerY + centerY;
+				int screenX = level.objects[i].position[0] - playerX + centerX;
+				int screenY = level.objects[i].position[1] - playerY + centerY;
 				
 				//Prevent wrap-around from the truncation that set_pos uses.
 				//TODO: Use clamp instead?
@@ -618,14 +622,14 @@ int main(void) {
 			}
 			
 			if((key_states & BUTTON_A) && !(prevKeys & BUTTON_A)){
-				for(int i = 0; i < objectCount; i++){
-					int diffX = objects[i].position[0] - playerX;
-					int diffY = objects[i].position[1] - playerY;
+				for(int i = 0; i < level.objectCount; i++){
+					int diffX = level.objects[i].position[0] - playerX;
+					int diffY = level.objects[i].position[1] - playerY;
 					
 					int diffSqr = diffX*diffX + diffY*diffY;
 					
 					if(diffSqr < 128){
-						PushText(objects[i].whatSay, 5, SCREEN_HEIGHT - 20);
+						PushText(level.objects[i].whatSay, 5, SCREEN_HEIGHT - 20);
 						ShowTextBox();
 						currMode = CONVERSATION;
 					}
@@ -653,9 +657,9 @@ int main(void) {
 				CombatOption effect = combatMenu[combatMenuIndex].effect;
 				
 				if(effect == ATTACK){
-					monsters[currentMonsterFight].health--;
+					level.monsters[currentMonsterFight].health--;
 					
-					if(monsters[currentMonsterFight].health <= 0){
+					if(level.monsters[currentMonsterFight].health <= 0){
 						RemoveMonster(currentMonsterFight);
 						shouldExitCombat = 1;
 					}
