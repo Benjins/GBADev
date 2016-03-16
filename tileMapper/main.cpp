@@ -133,7 +133,7 @@ void AddGameEntityAtPosition(LevelEntityInstances* gameEnts, int x, int y) {
 				int defIdx = FindStructDefByName(fieldDef.typeName);
 
 				FieldDefVector entFields = structDefs.vals[defIdx].fields;
-				for (int j = 0; j < entFields.length; i++) {
+				for (int j = 0; j < entFields.length; j++) {
 					FieldValue val = { 0 };
 					val.type = MetaOther;
 					val.name = entFields.vals[j].fieldName;
@@ -142,7 +142,8 @@ void AddGameEntityAtPosition(LevelEntityInstances* gameEnts, int x, int y) {
 					if (TOKEN_IS(fieldType, "char") && entFields.vals[j].pointerLevel == 1) {
 						val.type = MetaString;
 					}
-					else if (TOKEN_IS(fieldType, "int")) {
+					else if (TOKEN_IS(fieldType, "int") && entFields.vals[j].pointerLevel == 0 
+						&& entFields.vals[j].arrayCount == NOT_AN_ARRAY) {
 						val.type = MetaInt;
 					}
 
