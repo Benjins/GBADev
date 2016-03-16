@@ -4,6 +4,12 @@ Kevin MacLeod (incompetech.com)
 Licensed under Creative Commons: By Attribution 3.0
 http://creativecommons.org/licenses/by/3.0/
 
+long_music.wav is a full length re-export of Fresh Air by Kevin MacLeod to a wav file (but it was downloaded as an mp3).
+"Fresh Air"
+Kevin MacLeod (incompetech.com)
+Licensed under Creative Commons: By Attribution 3.0
+http://creativecommons.org/licenses/by/3.0/
+
 test_phrases.wav is a compiled version of phrases by Cyael Dobson.
 Cyael Dobsons Free Voice Pack.
 CC-BY Cyael Dobson.

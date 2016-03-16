@@ -78,7 +78,7 @@ int main(int argc, char** argv){
 	sprintf(soundHeaderFileName, "%s/sounds.h", dirName);
 	FILE* soundHeader = fopen(soundHeaderFileName, "wb");
 	
-	fprintf(soundHeader, "typedef struct{ unsigned char* data; int dataLength; } SoundClip;\n");
+	fprintf(soundHeader, "typedef struct{ const unsigned char* data; int dataLength; } SoundClip;\n");
 	
 	ParseSoundFile(wavFileName, soundHeader);
 	
@@ -148,6 +148,8 @@ void WriteSoundHeader(byte* data, int dataLen, WaveFormatHeader hdr, FILE* sound
 	
 	int newSampleCount = (int)(audioLengthInSeconds*newSampleRate);
 	
+	printf("Resampled sound to %d samples.\n", newSampleCount);
+	
 	byte* newSamples = (byte*)malloc(newSampleCount);
 	
 	int dataIdx = 0;
@@ -156,23 +158,15 @@ void WriteSoundHeader(byte* data, int dataLen, WaveFormatHeader hdr, FILE* sound
 	for(int i = 0; i < newSampleCount; i++){
 		double newSample = 0;
 		
-		/*
-		double currDataSample = (data[dataIdx]) + (hdr.BitsPerSample >= 16 ? data[dataIdx+1]*256 : 0) + (hdr.BitsPerSample >= 24 ? data[dataIdx+2]*65536 : 0);
-		currDataSample /= (1 << (hdr.BitsPerSample-8));
-		newSample += currDataSample*(1-error);
-		dataIdx += (hdr.BitsPerSample/8);
-		*/
-		
 		error += deltaErr;
 		int resampleCount = 0;
 		while(error >= 1){
 			double currDataSample = (data[dataIdx]);
-//			+ (hdr.BitsPerSample >= 16 ? data[dataIdx+1]*256: 0) + (hdr.BitsPerSample >= 24 ? data[dataIdx+2]*65536 : 0);
+			
 			if(hdr.BitsPerSample == 16){
 				currDataSample = *(short*)(&data[dataIdx]);
 			}
-			//printf("cusSamp: %f | newSamp: %f | data[idx]: %d | data[idx+1]*256: %d\n", 
-			//	currDataSample, currDataSample / (1 << (hdr.BitsPerSample-8)), data[dataIdx], data[dataIdx+1]*256);
+			
 			currDataSample /= (1 << (hdr.BitsPerSample-8));
 			newSample += currDataSample;
 			dataIdx += (hdr.BitsPerSample/8);
@@ -181,20 +175,10 @@ void WriteSoundHeader(byte* data, int dataLen, WaveFormatHeader hdr, FILE* sound
 			resampleCount++;
 		}
 		
-		/*
-		currDataSample = (data[dataIdx]) + (hdr.BitsPerSample >= 16 ? data[dataIdx+1]*256 : 0) + (hdr.BitsPerSample >= 24 ? data[dataIdx+2]*65536 : 0);
-		currDataSample /= (1 << (hdr.BitsPerSample-8));
-		newSample += currDataSample*error;
-		dataIdx += (hdr.BitsPerSample/8);
-		*/
-		
-		if(i % 37 == 0){
-			//printf("newSample/deltaErr: %f\n", newSample/resampleCount);
-		}
 		newSamples[i] = (byte)(newSample/resampleCount);
 	}
 	
-	fprintf(soundHeader, "unsigned char snd_data[] __attribute__((section(\".ewram\"))) = {\n");
+	fprintf(soundHeader, "const unsigned char snd_data[] __attribute__((section(\".rodata\"))) = {\n");
 	for(int i = 0; i < newSampleCount; i++){
 		fprintf(soundHeader, "%d, ", newSamples[i]);
 		if(i % 20 == 19){
@@ -247,11 +231,31 @@ void ParseSoundFile(char* sndFileName, FILE* soundHeader){
 					int chunkSize = *(int*)fileCursor;
 					fileCursor += 4;
 					
-					data = malloc(chunkSize);
-					dataSize = chunkSize;
-					_memcpy(data, fileCursor, chunkSize);
+					byte* oldData = data;
+					data = malloc(dataSize+chunkSize);
+					
+					_memcpy(data, oldData, dataSize);
+					_memcpy(data+dataSize, fileCursor, chunkSize);
+					
+					dataSize += chunkSize;
+					
+					free(oldData);
 					
 					printf("Found data of %d bytes, starts with: |%0X, %0X, %0X|.\n", chunkSize, data[0], data[1], data[2]);
+					
+					fileCursor += chunkSize;
+				}
+				else if(_memcmp(fileCursor, "LIST", 4) == 0){
+					fileCursor += 4;
+					int chunkSize = *(int*)fileCursor;
+					fileCursor += 4;
+					
+					fileCursor += chunkSize;
+				}
+				else if(_memcmp(fileCursor, "id3 ", 4) == 0){
+					fileCursor += 4;
+					int chunkSize = *(int*)fileCursor;
+					fileCursor += 4;
 					
 					fileCursor += chunkSize;
 				}

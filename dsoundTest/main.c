@@ -123,12 +123,17 @@ int main(void){
 		
 		
 		
-		sample += SOUND_BUFFER_SIZE;
-		
 		for(int k = 0; k < SOUND_BUFFER_SIZE; k++){
-			currBuffer[k] = 0;
+			currBuffer[k] = snd.data[sample+k];
 		}
 		
+		sample += SOUND_BUFFER_SIZE;
+		
+		if (sample > snd.dataLength){
+			sample -= snd.dataLength;
+		}
+		
+		/*
 		for(int i = 0; i < testSong.length; i++){
 			int noteStart = testSong.notes[i].start;
 			short pitch = testSong.notes[i].pitch;
@@ -141,7 +146,7 @@ int main(void){
 					currBuffer[k] += (k % pitch) / 4;//((k + offset) % pitch >= pitch/2) ? 20 : 0;
 				}
 			}
-		}
+		}*/
 		
 		if(currBuffer == soundBuffer){
 			currBuffer = soundBuffer + SOUND_BUFFER_SIZE;
