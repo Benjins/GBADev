@@ -58,7 +58,9 @@ int frameHeight = 0;
 float zoomLevel = 1.0f;
 int xOffset = 0;
 int yOffset = 0;
+
 int currentPaintIndex = 0;
+int currEntIndices[2] = { 0,0 };
 
 int currMouseX = 0;
 int currMouseY = 0;
@@ -76,6 +78,13 @@ EnumDefVector enumDefs = {0};
 StructDefVector structDefs = {0};
 
 LevelEntityInstancesVector levelInstance = { 0 };
+
+enum EditMode {
+	TilePaint,
+	EntityEdit
+};
+
+EditMode currentMode = TilePaint;
 
 void MouseDown(int mouseX, int mouseY);
 
@@ -281,7 +290,7 @@ void RunFrame(){
 		DrawText(frameBuffer, nameBuffer, frameBuffer.width - 170, 20 + i * 16, 160, 16);
 
 		if (Button(frameBuffer, frameBuffer.width - 30, 4 + i * 16, 16, 16, 0, 0, 0, "")) {
-			AddGameEntityAtPosition(&levelInstance.vals[i], 20 + xOffset, 20 + yOffset);
+			AddGameEntityAtPosition(&levelInstance.vals[i], 400 + xOffset, 400 + yOffset);
 		}
 
 		DrawBitmap(frameBuffer, frameBuffer.width - 30, 4 + i * 16, 16, 16, levelInstance.vals[i].icon);
@@ -311,28 +320,70 @@ void RunFrame(){
 		}
 	}
 
-	int backMapX = (currMouseX + xOffset) / tileSize;
-	int backMapY = (currMouseY + yOffset) / tileSize;
+	if (currentMode == TilePaint) {
+		int backMapX = (currMouseX + xOffset) / tileSize;
+		int backMapY = (currMouseY + yOffset) / tileSize;
 
-	int* frameMem = (int*)frameBuffer.data;
+		int* frameMem = frameBuffer.data;
 
-	if(backMapX >= 0 && backMapX < backMap.width && backMapY >= 0 && backMapY < backMap.height && currMouseX < frameBuffer.width - 180){
-		int xMin = backMapX * tileSize  - xOffset;
-		int xMax = (backMapX+1) * tileSize  - xOffset;
-		int yMin = backMapY * tileSize  - yOffset;
-		int yMax = (backMapY+1) * tileSize  - yOffset;
-	
-		xMin = clamp(xMin, 0, frameBuffer.width - 1);
-		xMax = clamp(xMax, 0, frameBuffer.width - 1);
-		yMin = clamp(yMin, 0, frameBuffer.height - 1);
-		yMax = clamp(yMax, 0, frameBuffer.height - 1);
-	
-		for(int j = yMin; j < yMax; j++){
-			for(int i = xMin; i < xMax; i++){
-				int frameIdx = (frameBuffer.height - j - 1)*frameBuffer.width+i;
-				frameMem[frameIdx] ^= 0xFFFFFF;
+		if (backMapX >= 0 && backMapX < backMap.width && backMapY >= 0 && backMapY < backMap.height && currMouseX < frameBuffer.width - 180) {
+			int xMin = backMapX * tileSize - xOffset;
+			int xMax = (backMapX + 1) * tileSize - xOffset;
+			int yMin = backMapY * tileSize - yOffset;
+			int yMax = (backMapY + 1) * tileSize - yOffset;
+
+			xMin = clamp(xMin, 0, frameBuffer.width - 1);
+			xMax = clamp(xMax, 0, frameBuffer.width - 1);
+			yMin = clamp(yMin, 0, frameBuffer.height - 1);
+			yMax = clamp(yMax, 0, frameBuffer.height - 1);
+
+			for (int j = yMin; j < yMax; j++) {
+				for (int i = xMin; i < xMax; i++) {
+					int frameIdx = (frameBuffer.height - j - 1)*frameBuffer.width + i;
+					frameMem[frameIdx] ^= 0xFFFFFF;
+				}
 			}
 		}
+
+		if (currentPaintIndex > 0) {
+			int flags = bgAsset.sprites[currentPaintIndex - 1].flags;
+
+			int index = 0;
+			for (int i = 1; i < MAX_SPRITE_FLAG; i *= 2) {
+
+				char flagText[256] = {};
+				sprintf(flagText, "Flag: %d, val: %s", i, (flags & i) ? "True" : "False");
+				DrawText(frameBuffer, flagText, frameBuffer.width - 150, 200 + index * 30, 150, 30);
+
+				if (Button(frameBuffer, frameBuffer.width - 150, 200 + index * 30, 60, 10, 0x55555555, 0xDDDDDDDD, 0xBBBBBBBB, "")) {
+					flags ^= i;
+					bgAsset.sprites[currentPaintIndex - 1].flags = (BGSpriteFlags)flags;
+				}
+
+				index++;
+			}
+		}
+
+		if (keyStates['F'] == PRESS) {
+			for (int i = 0; i < backMap.width*backMap.height; i++) {
+				((int*)backMap.data)[i] = currentPaintIndex * TILE_INDEX_MULTIPLIER;
+			}
+		}
+
+		DrawText(frameBuffer, "Load New BMP", frameBuffer.width - 150, frameBuffer.height - 150, 120, 40);
+	}
+	else if (currentMode == EntityEdit) {
+		LevelEntityInstances selectedEntityType = levelInstance.vals[currEntIndices[0]];
+		GameEntityInstance selectedEntity = selectedEntityType.instances.vals[currEntIndices[1]];
+		
+		char posText[256] = { 0 };
+		snprintf(posText, 256, "Position: (%3d,%3d)", selectedEntity.position[0], selectedEntity.position[1]);
+
+		char entText[256] = { 0 };
+		snprintf(entText, 256, "Selecting %.*s", selectedEntityType.name.length, selectedEntityType.name.start);
+
+		DrawText(frameBuffer, entText, frameBuffer.width - 150, 200, 150, 30);
+		DrawText(frameBuffer, posText, frameBuffer.width - 150, 230, 150, 30);
 	}
 
 	for (int i = 0; i < levelInstance.length; i++) {
@@ -351,44 +402,15 @@ void RunFrame(){
 	BitmapData redBMP = {&redCol, 1, 1};
 	DrawBitmap(frameBuffer, currentPaintIndex*34,frameBuffer.height - 34, 34, 34, redBMP);
 
-
 	for (int i = 0; i < bgSpriteCount; i++) {
 		DrawBitmap(frameBuffer, (i+1) * 34 + 1, frameBuffer.height - 33, 32, 32, bgSprites[i]);
 	}
-
-	if(currentPaintIndex > 0){
-	
-		int flags = bgAsset.sprites[currentPaintIndex-1].flags;
-	
-		int index = 0;
-		for(int i = 1; i < MAX_SPRITE_FLAG; i *= 2){
-		
-			char flagText[256] = {};
-			sprintf(flagText, "Flag: %d, val: %s", i,  (flags & i) ? "True" : "False");
-			DrawText(frameBuffer, flagText, frameBuffer.width - 150, 200 + index*30, 150, 30);
-		
-			if(Button(frameBuffer, frameBuffer.width - 150, 200 + index*30, 60, 10, 0x55555555, 0xDDDDDDDD, 0xBBBBBBBB, "")){
-				flags ^= i;
-				bgAsset.sprites[currentPaintIndex-1].flags = (BGSpriteFlags)flags;
-			}
-		
-			index++;
-		}
-	}
-
-	DrawText(frameBuffer,  "Load New BMP", frameBuffer.width - 150, frameBuffer.height - 150, 120, 40);
 
 	if(Button(frameBuffer, frameBuffer.width - 150, frameBuffer.height - 100, 120, 40, 0x55555555, 0xDDDDDDDD, 0xBBBBBBBB, "")){
 
 		char fileName[256] = {};
 		if(OpenFile(fileName, windowObj, "bmp", "BMP files(*.bmp)", arg1Str, arg1Length)){
 			AddBackgroundSprite(&bgAsset, &bgSprites, &bgSpriteCount, fileName, arg1Str, arg1Length);
-		}
-	}
-	
-	for(int i = 0; i < 256; i++){
-		if(keyStates[i] == 1){
-			printf("Key '%d' on this side of things was pressed\n", i);
 		}
 	}
 	
@@ -409,12 +431,6 @@ void RunFrame(){
 	}
 	if (keyStates['Z'] > 1) {
 		zoomLevel *= 1.01f;
-	}
-
-	if (keyStates['F'] == PRESS) {
-		for (int i = 0; i < backMap.width*backMap.height; i++) {
-			((int*)backMap.data)[i] = currentPaintIndex * TILE_INDEX_MULTIPLIER;
-		}
 	}
 
 	if (keyStates['O'] == PRESS) {
@@ -467,12 +483,34 @@ void MouseDown(int mouseX, int mouseY) {
 	int backMapX = (mouseX + xOffset) / tileSize;
 	int backMapY = (mouseY + yOffset) / tileSize;
 
-	if (RangeCheck(-1, backMapX, backMap.width) && RangeCheck(-1, backMapY, backMap.height) && RangeCheck(0, mouseY, frameHeight - 32)){
-		int backMapIdx = backMap.width * (backMap.height - 1 - backMapY) + backMapX;
-		((int*)backMap.data)[backMapIdx] = currentPaintIndex * TILE_INDEX_MULTIPLIER;
+	int entX = (mouseX + xOffset);
+	int entY = (mouseY + yOffset);
+
+	currentMode = TilePaint;
+
+	for (int i = 0; i < levelInstance.length; i++) {
+		for (int j = 0; j < levelInstance.vals[i].instances.length; j++) {
+			int* pos = levelInstance.vals[i].instances.vals[j].position;
+			
+			if (entX > pos[0] && entX < pos[0] + tileSize
+			 && entY > pos[1] && entY < pos[1] + tileSize) {
+				
+				currEntIndices[0] = i;
+				currEntIndices[1] = j;
+				currentMode = EntityEdit;
+				break;
+			}
+		}
 	}
-	else if (RangeCheck(frameHeight-33, mouseY, frameHeight)) {
-		currentPaintIndex = clamp(mouseX / 34, 0, bgSpriteCount);
+
+	if (currentMode == TilePaint) {
+		if (RangeCheck(-1, backMapX, backMap.width) && RangeCheck(-1, backMapY, backMap.height) && RangeCheck(0, mouseY, frameHeight - 32)) {
+			int backMapIdx = backMap.width * (backMap.height - 1 - backMapY) + backMapX;
+			backMap.data[backMapIdx] = currentPaintIndex * TILE_INDEX_MULTIPLIER;
+		}
+		else if (RangeCheck(frameHeight - 33, mouseY, frameHeight)) {
+			currentPaintIndex = clamp(mouseX / 34, 0, bgSpriteCount);
+		}
 	}
 }
 

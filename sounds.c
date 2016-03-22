@@ -273,7 +273,7 @@ void ParseSoundFile(char* sndFileName, FILE* soundHeader){
 		printf("Error, '%s' may not be a proper WAVE file, missing header.\n", sndFileName);
 	}
 	
-	const int newSampleRate = 5734;
+	const int newSampleRate = 18157;
 	
 	WriteSoundHeader(data, dataSize, format, soundHeader, newSampleRate);
 	

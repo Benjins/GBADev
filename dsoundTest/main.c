@@ -49,7 +49,7 @@ static inline void disable_sound(){REG_SND_STAT &= ~0x80;}
 
 //int8 pSample[304*30];
 
-#define SOUND_BUFFER_SIZE 96
+#define SOUND_BUFFER_SIZE 304
 int8 soundBuffer[SOUND_BUFFER_SIZE*3];
 int8* currBuffer = soundBuffer;
 
@@ -102,7 +102,7 @@ int main(void){
 	REG_SND_DMGCNT = 0x3F;
 	
 	REG_SND_DSCNT = 0x0606 | (1 << 8) | (1 << 9);
-	REG_TM1D = 65536 - (16777216 / 5734);
+	REG_TM1D = 65536 - (16777216 / 18157);
 	REG_TM1CNT = 0x80;
 	REG_DMA1_SRCADDR = (uint32) soundBuffer;
 	REG_DMA1_DSTADDR = 0x040000A0;
