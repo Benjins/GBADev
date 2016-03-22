@@ -227,7 +227,7 @@ int currentSelectedIndex = -1;
 bool TextBox(BitmapData bitmap, char* text, int bufferLength, int x, int y, int width, int height){
 	int mouseIsOver = 0;
 	if(currMouseX > x && currMouseX < x + width
-	&& currMouseY > y && currMouseY < y + height){
+	&& currMouseY > y - height && currMouseY < y){
 		mouseIsOver = 1;
 	}
 	
@@ -276,7 +276,7 @@ bool TextBox(BitmapData bitmap, char* text, int bufferLength, int x, int y, int 
 		}
 	}
 	
-	for(int j = y; j < y + height; j++){
+	for(int j = y - height; j < y; j++){
 		for(int i = x; i < x + width; i++){
 			int frameIdx = (bitmap.height - 1 - j)*bitmap.width+i;
 			bitmap.data[frameIdx] = 0x66666666;

@@ -384,6 +384,39 @@ void RunFrame(){
 
 		DrawText(frameBuffer, entText, frameBuffer.width - 150, 200, 150, 30);
 		DrawText(frameBuffer, posText, frameBuffer.width - 150, 230, 150, 30);
+
+		for (int i = 0; i < selectedEntity.otherVals.length; i++) {
+			FieldValue* fieldVal = &selectedEntity.otherVals.vals[i];
+			
+			char fieldTypeLabel[256] = { 0 };
+			snprintf(fieldTypeLabel, 256, "%.*s", fieldVal->name.length, fieldVal->name.start);
+
+			int fieldY = 260 + 30 * i;
+
+			DrawText(frameBuffer, fieldTypeLabel, frameBuffer.width - 150, fieldY, 75, 30);
+
+			char fieldValLabel[256] = { 0 };
+
+			if (fieldVal->type == MetaInt) {
+				snprintf(fieldValLabel, 256, "%d", fieldVal->intVal);
+				TextBox(frameBuffer, fieldValLabel, 256, frameBuffer.width - 75, fieldY, 75, 20);
+				fieldVal->intVal = atoi(fieldValLabel);
+			}
+			else if (fieldVal->type == MetaString) {
+				if (fieldVal->strVal) {
+					snprintf(fieldValLabel, 256, "%s", fieldVal->strVal);
+				}
+				TextBox(frameBuffer, fieldValLabel, 256, frameBuffer.width - 75, fieldY, 75, 20);
+				
+				if (strcmp(fieldValLabel, fieldVal->strVal)) {
+					char* newStrVal = (char*)malloc(256);
+					_memcpy(newStrVal, fieldVal->strVal, 256);
+					free(fieldVal->strVal);
+					fieldVal->strVal = newStrVal;
+				}
+			}
+		}
+
 	}
 
 	for (int i = 0; i < levelInstance.length; i++) {
@@ -486,19 +519,21 @@ void MouseDown(int mouseX, int mouseY) {
 	int entX = (mouseX + xOffset);
 	int entY = (mouseY + yOffset);
 
-	currentMode = TilePaint;
+	if (currMouseX < frameWidth - 150) {
+		currentMode = TilePaint;
 
-	for (int i = 0; i < levelInstance.length; i++) {
-		for (int j = 0; j < levelInstance.vals[i].instances.length; j++) {
-			int* pos = levelInstance.vals[i].instances.vals[j].position;
-			
-			if (entX > pos[0] && entX < pos[0] + tileSize
-			 && entY > pos[1] && entY < pos[1] + tileSize) {
-				
-				currEntIndices[0] = i;
-				currEntIndices[1] = j;
-				currentMode = EntityEdit;
-				break;
+		for (int i = 0; i < levelInstance.length; i++) {
+			for (int j = 0; j < levelInstance.vals[i].instances.length; j++) {
+				int* pos = levelInstance.vals[i].instances.vals[j].position;
+
+				if (entX > pos[0] && entX < pos[0] + tileSize
+					&& entY > pos[1] && entY < pos[1] + tileSize) {
+
+					currEntIndices[0] = i;
+					currEntIndices[1] = j;
+					currentMode = EntityEdit;
+					break;
+				}
 			}
 		}
 	}
