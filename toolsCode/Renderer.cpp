@@ -262,7 +262,7 @@ bool TextBox(BitmapData bitmap, char* text, int bufferLength, int x, int y, int 
 	}
 	
 	if(listIndex == currentSelectedIndex){
-		for(char i = 32; i < 127; i++){
+		for(char i = 0; i < 127; i++){
 			if(keyStates[i] == 1){
 				char* cursor = text + strlen(text);
 				if(i == '\b' && cursor > text){

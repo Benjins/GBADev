@@ -60,7 +60,8 @@ int xOffset = 0;
 int yOffset = 0;
 
 int currentPaintIndex = 0;
-int currEntIndices[2] = { 0,0 };
+int currEntIndices[2] = { 0, 0 };
+int currEntOffset[2] = { 0 ,0 };
 
 int currMouseX = 0;
 int currMouseY = 0;
@@ -81,7 +82,8 @@ LevelEntityInstancesVector levelInstance = { 0 };
 
 enum EditMode {
 	TilePaint,
-	EntityEdit
+	EntityEdit,
+	EntityMove
 };
 
 EditMode currentMode = TilePaint;
@@ -275,8 +277,69 @@ void Init(){
 void RunFrame(){
 	BitmapData frameBuffer = { (int*)bitmapData, frameWidth, frameHeight };
 	
-	if(mouseState > 1){
-		MouseDown(currMouseX, currMouseY);
+	int tileSize = (int)(16 * zoomLevel);
+
+	int backMapX = (currMouseX + xOffset) / tileSize;
+	int backMapY = (currMouseY + yOffset) / tileSize;
+
+	if (mouseState == PRESS) {
+		int entX = (int)((currMouseX + xOffset) / zoomLevel);
+		int entY = (int)((currMouseY + yOffset) / zoomLevel);
+
+		if (currMouseX < frameWidth - 150) {
+			bool selectEntity = false;
+
+			for (int i = 0; i < levelInstance.length; i++) {
+				for (int j = 0; j < levelInstance.vals[i].instances.length; j++) {
+					int* pos = levelInstance.vals[i].instances.vals[j].position;
+
+					if (entX > pos[0] && entX < pos[0] + tileSize
+						&& entY > pos[1] && entY < pos[1] + tileSize) {
+
+						currEntOffset[0] = entX - pos[0];
+						currEntOffset[1] = entY - pos[1];
+
+						currEntIndices[0] = i;
+						currEntIndices[1] = j;
+						selectEntity = true;
+						break;
+					}
+				}
+			}
+
+			if (selectEntity) {
+				if (currentMode == EntityEdit) {
+					currentMode = EntityMove;
+				}
+				else {
+					currentMode = EntityEdit;
+				}
+			}
+			else {
+				currentMode = TilePaint;
+			}
+		}
+	}
+	else if(mouseState == HOLD){
+		if (currentMode == TilePaint) {
+			if (RangeCheck(-1, backMapX, backMap.width) && RangeCheck(-1, backMapY, backMap.height) && RangeCheck(0, currMouseY, frameHeight - 32)) {
+				int backMapIdx = backMap.width * (backMap.height - 1 - backMapY) + backMapX;
+				backMap.data[backMapIdx] = currentPaintIndex * TILE_INDEX_MULTIPLIER;
+			}
+			else if (RangeCheck(frameHeight - 33, currMouseY, frameHeight)) {
+				currentPaintIndex = clamp(currMouseX / 34, 0, bgSpriteCount);
+			}
+		}
+		else if (currentMode == EntityMove) {
+			int* pos = levelInstance.vals[currEntIndices[0]].instances.vals[currEntIndices[1]].position;
+			pos[0] = (int)((currMouseX + xOffset) /zoomLevel + currEntOffset[0]);
+			pos[1] = (int)((currMouseY + yOffset) /zoomLevel + currEntOffset[1]);
+		}
+	}
+	else {
+		if (currentMode == EntityMove) {
+			currentMode = EntityEdit;
+		}
 	}
 
 	memset(bitmapData, 0, frameBuffer.width*frameBuffer.height * 4);
@@ -298,8 +361,6 @@ void RunFrame(){
 
 	float rowCount = (frameBuffer.height - 48) / 16 / zoomLevel;
 	float colCount = (frameBuffer.width - 180)  / 16 / zoomLevel;
-
-	int tileSize = (int)(16 * zoomLevel);
 
 	for(int j = -1; j < rowCount + 1; j++){
 		for(int i = -1; i < colCount + 1; i++){
@@ -506,46 +567,3 @@ void RunFrame(){
 
 	zoomLevel = clamp(zoomLevel, 0.25f, 2.0f);
 }
-
-void MouseDown(int mouseX, int mouseY) {
-	int tileSize = (int)(16 * zoomLevel);
-	
-	currMouseX = mouseX;
-	currMouseY = mouseY;
-
-	int backMapX = (mouseX + xOffset) / tileSize;
-	int backMapY = (mouseY + yOffset) / tileSize;
-
-	int entX = (mouseX + xOffset);
-	int entY = (mouseY + yOffset);
-
-	if (currMouseX < frameWidth - 150) {
-		currentMode = TilePaint;
-
-		for (int i = 0; i < levelInstance.length; i++) {
-			for (int j = 0; j < levelInstance.vals[i].instances.length; j++) {
-				int* pos = levelInstance.vals[i].instances.vals[j].position;
-
-				if (entX > pos[0] && entX < pos[0] + tileSize
-					&& entY > pos[1] && entY < pos[1] + tileSize) {
-
-					currEntIndices[0] = i;
-					currEntIndices[1] = j;
-					currentMode = EntityEdit;
-					break;
-				}
-			}
-		}
-	}
-
-	if (currentMode == TilePaint) {
-		if (RangeCheck(-1, backMapX, backMap.width) && RangeCheck(-1, backMapY, backMap.height) && RangeCheck(0, mouseY, frameHeight - 32)) {
-			int backMapIdx = backMap.width * (backMap.height - 1 - backMapY) + backMapX;
-			backMap.data[backMapIdx] = currentPaintIndex * TILE_INDEX_MULTIPLIER;
-		}
-		else if (RangeCheck(frameHeight - 33, mouseY, frameHeight)) {
-			currentPaintIndex = clamp(mouseX / 34, 0, bgSpriteCount);
-		}
-	}
-}
-
