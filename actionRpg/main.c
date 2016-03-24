@@ -88,6 +88,7 @@ volatile object_attributes* playerHealthAttribs = &oam_memory[MAX_LETTER_COUNT+M
 volatile object_attributes* playerAttribs = &oam_memory[MAX_LETTER_COUNT+MAX_TEXT_BOX_COUNT+1];
 volatile object_attributes* objectAttribs = &oam_memory[MAX_LETTER_COUNT+MAX_TEXT_BOX_COUNT+2];
 volatile object_attributes* monsterAttribs = &oam_memory[MAX_LETTER_COUNT+MAX_TEXT_BOX_COUNT+MAX_OBJECT_COUNT+2];
+volatile object_attributes* testSprtAttribs = &oam_memory[MAX_LETTER_COUNT+MAX_TEXT_BOX_COUNT+MAX_OBJECT_COUNT+MAX_MONSTER_COUNT+2];
 
 // Form a 16-bit BGR GBA colour from three component values
 static inline rgb15 RGB15(int r, int g, int b) { return r | (g << 5) | (b << 10); }
@@ -366,7 +367,6 @@ void ExitCombat(){
 		set_sprite_memory(textBoxSprite, text_box_tile_memory);
 	}
 	
-	
 	anims.animCount = 0;
 	AddAnimation(&anims, monster_anim, monster_tile_memory, &timers);
 	
@@ -374,6 +374,23 @@ void ExitCombat(){
 		volatile uint16* player_tile_memory = (uint16 *)tile_memory[4][i+1];
 		set_sprite_memory(playerDirections[i], player_tile_memory);
 	}
+	
+	volatile uint16* palTest1Mem = (uint16 *)tile_memory[4][28];
+	set_sprite_memory(palTest1, palTest1Mem);
+	
+	volatile uint16* palTest2Mem = (uint16 *)tile_memory[4][29];
+	set_sprite_memory(palTest2, palTest2Mem);
+	
+	testSprtAttribs[0].attribute_zero = 0;
+	testSprtAttribs[0].attribute_one = 0; 
+	testSprtAttribs[0].attribute_two = 28 | (palTest1.palIdx << 12);
+	set_object_position(&testSprtAttribs[0], 17, 17);
+	
+	testSprtAttribs[1].attribute_zero = 0;
+	testSprtAttribs[1].attribute_one = 0; 
+	testSprtAttribs[1].attribute_two = 29 | (palTest2.palIdx << 12);;
+	set_object_position(&testSprtAttribs[1], 27, 37);
+	
 	
 	Sprite font[] = {aFont, bFont, cFont, dFont, eFont, fFont, gFont, hFont, iFont,
 					jFont, kFont, lFont, mFont, nFont, oFont, pFont, qFont, rFont, sFont,
@@ -390,7 +407,7 @@ void ExitCombat(){
 		volatile object_attributes* textBoxAttrib = &textBoxAttribs[i];
 		textBoxAttrib->attribute_zero = 0x0000;
 		textBoxAttrib->attribute_one = 0x4000; 
-		textBoxAttrib->attribute_two = 2+DIR_COUNT;
+		textBoxAttrib->attribute_two = (2+DIR_COUNT);
 		set_object_position(textBoxAttrib, -17, -17);
 	}
 	
@@ -581,7 +598,7 @@ int main(void) {
 						int backMapIdx = backMapY*backMap.map.width+backMapX;
 						
 						int scrMapIdx = j*32+i;
-						screenmap0Start[scrMapIdx] = backMap.map.data[backMapIdx];
+						screenmap0Start[scrMapIdx] = backMap.map.data[backMapIdx] | backMap.bgSprites[backMap.map.data[backMapIdx]].palIdx << 12;
 					}
 				}
 			}

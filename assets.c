@@ -43,8 +43,16 @@ typedef uint16 rgb15;
 
 static inline rgb15 RGB15(int r, int g, int b) { return r | (g << 5) | (b << 10); }
 
+#define MAX_BANK_COLOURS 16
+#define MAX_BANKS_PALETTE 16
+
 typedef struct{
-	rgb15 data[256];
+	rgb15 cols[MAX_BANK_COLOURS];
+	int size;
+} PaletteBank;
+
+typedef struct{
+	PaletteBank banks[MAX_BANKS_PALETTE];
 	int size;
 } Palette;
 
@@ -136,14 +144,13 @@ int main(int argc, char** argv){
 	static const char* whitespace = "\n\r\t ";
 	
 	char headerStart[512] = 
-	"typedef struct{int type; int width; int height; unsigned short* data;} Sprite;\n \
-	 typedef struct{Sprite map; Sprite* bgSprites; int* spriteFlags; int bgCount;} Background;\n";
+	"typedef struct{int palIdx; int width; int height; unsigned short* data;} Sprite;\n "
+	"typedef struct{Sprite map; Sprite* bgSprites; int* spriteFlags; int bgCount;} Background;\n";
 	
 	fprintf(assetsHeaderFile, "%s", headerStart);
 	
 	Palette palette;
-	palette.data[0] = 0;
-	palette.size = 1;
+	palette.size = 0;
 	
 	while(cursor != NULL && cursor >= assetFileContents && (cursor - assetFileContents) < assetFileSize){
 		cursor += strspn(cursor, whitespace);
@@ -279,6 +286,33 @@ typedef struct {
 	unsigned char Alpha;
 } RGBAPixel;
 
+bool MergePaletteBanks(PaletteBank a, PaletteBank b, PaletteBank* out){
+	PaletteBank possibleOut = a;
+	
+	for(int i = 0; i < b.size; i++){
+		bool found = false;
+		for(int j = 0; j < possibleOut.size; j++){
+			if(b.cols[i] == possibleOut.cols[j]){
+				found = true;
+				break;
+			}
+		}
+		
+		if(!found){
+			if(possibleOut.size >= 15){
+				return false;
+			}
+			else{
+				possibleOut.cols[possibleOut.size] = b.cols[i];
+				possibleOut.size++;
+			}
+		}
+	}
+	
+	*out = possibleOut;
+	return true;
+}
+
 void WriteBackground(char* folderName, Token varName, Token fileName, FILE* assetHeader){
 	int folderNameLength = strlen(folderName);
 	char* fileNameCpy = (char*)malloc(folderNameLength + 1 + fileName.length+1);
@@ -331,12 +365,7 @@ void WriteBackground(char* folderName, Token varName, Token fileName, FILE* asse
 	}
 	fprintf(assetHeader, "};\n");
 	
-	int type = 0;
-	if(width == 32 && height == 8){
-		type = 0x4000;
-	}
-	
-	fprintf(assetHeader, "static Sprite %.*s = {%d, %d, %d, %.*s_data\n};\n", varName.length, varName.start, type, width, height, varName.length, varName.start);
+	fprintf(assetHeader, "static Sprite %.*s = {%d, %d, %d, %.*s_data\n};\n", varName.length, varName.start, 0, width, height, varName.length, varName.start);
 	
 	free(pixelData);
 }
@@ -389,6 +418,10 @@ void WriteAsset(char* folderName, Token varName, Token fileName, FILE* assetHead
 	
 	unsigned char* indices = (unsigned char*) malloc(width*height);
 	
+	PaletteBank newBank = {};
+	newBank.size = 1;
+	newBank.cols[0] = 0;
+	
 	for(int j = 0; j < height; j++){
 		for(int i = 0; i < width; i++){	
 			int index = j*width+i;
@@ -402,23 +435,37 @@ void WriteAsset(char* folderName, Token varName, Token fileName, FILE* assetHead
 			
 			int paletteIndex = -1;
 			rgb15 shiftedColor = RGB15(pixelData[index].Red / 8, pixelData[index].Green / 8, pixelData[index].Blue / 8);
-			for(int pIdx = 0; pIdx < palette->size; pIdx++){
-				if(palette->data[pIdx] == shiftedColor){
-					//printf("Set pltIdx to '%d'\n", pIdx);
+			for(int pIdx = 0; pIdx < newBank.size; pIdx++){
+				if(newBank.cols[pIdx] == shiftedColor){
 					paletteIndex = pIdx;
 					break;
 				}
 			}
 			
 			if(paletteIndex == -1){
-				palette->data[palette->size] = shiftedColor;
-				paletteIndex = palette->size;
-				palette->size++;
-				//printf("Increment palette->size to '%d'\n", palette->size);
+				newBank.cols[newBank.size] = shiftedColor;
+				paletteIndex = newBank.size;
+				newBank.size++;
 			}
 			
 			indices[memIdx] = paletteIndex;
 		}
+	}
+	
+	int palIdx = -1;
+	for(int i = 0; i < palette->size; i++){
+		PaletteBank mergeBank = {};
+		if(MergePaletteBanks(palette->banks[i], newBank, &mergeBank)){
+			palette->banks[i] = mergeBank;
+			palIdx = i;
+			break;
+		}
+	}
+	
+	if(palIdx == -1){
+		palette->banks[palette->size] = newBank;
+		palIdx = palette->size;
+		palette->size++;
 	}
 	
 	fprintf(assetHeader, "static unsigned short %.*s_data[] = {\n", varName.length, varName.start);
@@ -427,12 +474,7 @@ void WriteAsset(char* folderName, Token varName, Token fileName, FILE* assetHead
 	}
 	fprintf(assetHeader, "};\n");
 	
-	int type = 0;
-	if(width == 32 && height == 8){
-		type = 0x4000;
-	}
-	
-	fprintf(assetHeader, "static Sprite %.*s = {%d, %d, %d, %.*s_data\n};\n", varName.length, varName.start, type, width, height, varName.length, varName.start);
+	fprintf(assetHeader, "static Sprite %.*s = {%d, %d, %d, %.*s_data\n};\n", varName.length, varName.start, palIdx, width, height, varName.length, varName.start);
 	
 	free(indices);
 	
@@ -440,9 +482,15 @@ void WriteAsset(char* folderName, Token varName, Token fileName, FILE* assetHead
 }
 
 void WritePalette(Palette* palette, FILE* assetHeader){
-	fprintf(assetHeader, "rgb15 paletteColors[] = {\n");
+	fprintf(assetHeader, "\nrgb15 paletteColors[] = {\n\t");
 	for(int i = 0; i < palette->size; i++){
-		fprintf(assetHeader, "%d,", palette->data[i]);
+		for(int j = 0; j < palette->banks[i].size; j++){
+			fprintf(assetHeader, "%d,", palette->banks[i].cols[j]);
+		}
+		for(int j = palette->banks[i].size; j < 16; j++){
+			fprintf(assetHeader, "0,");
+		}
+		printf("\n\t");
 	}
 	fprintf(assetHeader, "};\n");
 }
