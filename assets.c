@@ -458,6 +458,17 @@ void WriteAsset(char* folderName, Token varName, Token fileName, FILE* assetHead
 		if(MergePaletteBanks(palette->banks[i], newBank, &mergeBank)){
 			palette->banks[i] = mergeBank;
 			palIdx = i;
+			
+			for(int k = 0; k < width*height; k++){
+				int oldIdx = indices[k];
+				for(int b = 0; b < palette->banks[i].size; b++){
+					if(palette->banks[i].cols[b] == newBank.cols[oldIdx]){
+						indices[k] = b;
+						break;
+					}
+				}
+			}
+			
 			break;
 		}
 	}

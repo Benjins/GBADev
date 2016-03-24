@@ -384,7 +384,7 @@ void ExitCombat(){
 	testSprtAttribs[0].attribute_zero = 0;
 	testSprtAttribs[0].attribute_one = 0; 
 	testSprtAttribs[0].attribute_two = 28 | (palTest1.palIdx << 12);
-	set_object_position(&testSprtAttribs[0], 17, 17);
+	set_object_position(&testSprtAttribs[0], 17, 57);
 	
 	testSprtAttribs[1].attribute_zero = 0;
 	testSprtAttribs[1].attribute_one = 0; 
@@ -420,7 +420,7 @@ void ExitCombat(){
 	
 	playerAttribs->attribute_zero = 0; 
 	playerAttribs->attribute_one = 0; 
-	playerAttribs->attribute_two = 1+playerDir;
+	playerAttribs->attribute_two = (1+playerDir) | (playerDirections[playerDir].palIdx << 12);
 	set_object_position(playerAttribs, centerX, centerY);
 	
 	for(int i = 0; i < MAX_OBJECT_COUNT; i++){
