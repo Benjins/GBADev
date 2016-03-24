@@ -598,7 +598,7 @@ int main(void) {
 						int backMapIdx = backMapY*backMap.map.width+backMapX;
 						
 						int scrMapIdx = j*32+i;
-						screenmap0Start[scrMapIdx] = backMap.map.data[backMapIdx] | backMap.bgSprites[backMap.map.data[backMapIdx]].palIdx << 12;
+						screenmap0Start[scrMapIdx] = backMap.map.data[backMapIdx] | (backMap.bgSprites[backMap.map.data[backMapIdx] - 1].palIdx << 12);
 					}
 				}
 			}

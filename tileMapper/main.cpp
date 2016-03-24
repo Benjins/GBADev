@@ -202,7 +202,7 @@ void Init(){
 	char mainCodeFileName[256] = {};
 	snprintf(mainCodeFileName, 256, "%.*s/main.c", arg1Length, arg1Str);
 	
-	MetaParseFile(mainCodeFileName, &enumDefs, &structDefs);
+	//MetaParseFile(mainCodeFileName, &enumDefs, &structDefs);
 
 	Token gameEntToken = MAKE_TOKEN(GameEntity);
 	Token levelToken = MAKE_TOKEN(Level);
