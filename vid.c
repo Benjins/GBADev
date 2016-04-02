@@ -139,7 +139,7 @@ void WriteBitmapToAssetHeader(char* varName, int frameNum, BitmapData bmpData, F
 	
 	rgb15* resampled = ResampleBMPTo16Bit(resized);
 	
-	fprintf(assetHeaderFile, "uint16 %s%d[] __attribute__((section(\".rodata\")))= {\n", varName, frameNum);
+	fprintf(assetHeaderFile, "const uint16 %s%d[] __attribute__((section(\".rodata\")))= {\n", varName, frameNum);
 	
 	for(int i = 0; i < SCREEN_WIDTH*SCREEN_HEIGHT; i++){
 		int x = i % SCREEN_WIDTH;
@@ -186,10 +186,9 @@ int main(int argc, char** argv){
 	
 	FILE* assetHeaderFile = fopen(vidAssetFileName, "wb");
 	
-	fprintf(assetHeaderFile, "typedef struct{uint16** frames; int frameCount; int width; int height;} Video;\n");
+	fprintf(assetHeaderFile, "typedef struct{const uint16** frames; int frameCount; int width; int height;} Video;\n");
 	
 	for(int i = vidStart; i <= vidEnd; i++){
-		printf("Working on frame %d\n", i);
 		char frameFileName[256] = {0};
 		snprintf(frameFileName, 256, vidFileFormat, i);
 		
@@ -201,7 +200,7 @@ int main(int argc, char** argv){
 	}
 	
 	
-	fprintf(assetHeaderFile, "uint16* %s_frames[] = {\n", vidName);
+	fprintf(assetHeaderFile, "const uint16* %s_frames[] = {\n", vidName);
 	for(int i = vidStart; i <= vidEnd; i++){
 		fprintf(assetHeaderFile, "\t%s%d,\n", vidName, i);
 	}

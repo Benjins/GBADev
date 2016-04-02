@@ -34,6 +34,7 @@ typedef int int32;
 #define REG_DMA3_DSTADDR (*(volatile uint32*)0x40000D8)
 #define REG_DMA3_CNT     (*(volatile uint32*)0x40000DC)
 
+
 // DMA flags
 #define HALF_WORD_DMA       0x00000000
 #define DEST_REG_SAME       0x00400000
@@ -47,16 +48,11 @@ typedef int int32;
 static inline void  enable_sound(){REG_SND_STAT |= 0x80;}
 static inline void disable_sound(){REG_SND_STAT &= ~0x80;}
 
-//int8 pSample[304*30];
-
-#define SOUND_BUFFER_SIZE 304
-int8 soundBuffer[SOUND_BUFFER_SIZE*3];
-int8* currBuffer = soundBuffer;
-
 // Timer flags
 #define TIMER_ENABLED       0x0080
 
 #include <gba_interrupt.h>
+#include <gba_systemcalls.h>
 
 #define SCREEN_WIDTH  240
 #define SCREEN_HEIGHT 160
@@ -69,67 +65,53 @@ int8* currBuffer = soundBuffer;
 
 #define REG_DISPLAY_STAT (*((volatile uint16*)(MEM_IO + 0x04)))
 
-/*
-#define REG_IE  (*(volatile uint16*)(MEM_IO + 0x0200))
-#define REG_IF  (*(volatile uint16*)(MEM_IO + 0x0202))
-#define REG_IME (*(volatile uint16*)(MEM_IO + 0x0208))
-*/
-
-//#include "sounds.h"
-//#include "midi.h"
-
 #include "vid.h"
+#include "sounds.h"
+
+#define SOUND_BUFFER_SIZE 96
+int8 soundBuffer[SOUND_BUFFER_SIZE*3];
+int8* currBuffer = soundBuffer;
 
 int main(void){
 	irqInit();
 	irqEnable(IRQ_VBLANK);
 	
-	/*
-	uint16 prevIme = REG_IME;
-	REG_IME = 0;
-
-	REG_DISPLAY_STAT = 0x0008;
-	REG_IE = 1;
-
-	REG_IME = prevIme;
-	*/
-	
 	REG_DISPLAY = 0x0403;
 	
+	int zeroFill[8] = {0};
+	CpuFastSet(zeroFill, (void*)FRAME_MEM, (SCREEN_WIDTH*SCREEN_HEIGHT/2) | (1 << 26));
 	
-	for(int i = 0; i < SCREEN_WIDTH*SCREEN_HEIGHT; i++){
-		FRAME_MEM[i] = 0;
-	}
-	
+	int frameIdx = 0;
 	
 	enable_sound();
 	
 	REG_SND_DMGCNT = 0x3F;
 	
 	REG_SND_DSCNT = 0x0606 | (1 << 8) | (1 << 9);
-	REG_TM1D = 65536 - (16777216 / 18157);
+	REG_TM1D = 65536 - (16777216 / 5734);
 	REG_TM1CNT = 0x80;
 	REG_DMA1_SRCADDR = (uint32) soundBuffer;
 	REG_DMA1_DSTADDR = 0x040000A0;
 	REG_DMA1_CNT = 0xB640000E;
 	
-	
 	int soundCursor = 0;
 	int sample = 0;
 	
-	int frameIdx = 0;
-	
 	while(1){
+		//FRAME_MEM[frameIdx] = 0xFFFF;
 		
+		/*
 		for(int i = 0; i < SCREEN_WIDTH*SCREEN_HEIGHT; i++){
 			FRAME_MEM[i] = astley.frames[frameIdx][i];
+		}*/
+		
+		if(frameIdx %2 == 0){
+			CpuFastSet(astley.frames[frameIdx/2], (void*)FRAME_MEM, SCREEN_WIDTH*SCREEN_HEIGHT/2);
 		}
 		
 		frameIdx++;
+		frameIdx = frameIdx % (astley.frameCount * 2);
 		
-		frameIdx = frameIdx % (astley.frameCount);
-		
-		/*
 		for(int k = 0; k < SOUND_BUFFER_SIZE; k++){
 			currBuffer[k] = snd.data[sample+k];
 		}
@@ -152,9 +134,8 @@ int main(void){
 		else{
 			currBuffer = soundBuffer;
 		}
-		*/
 		
-		while(REG_DISPLAY_VCOUNT != 160);
+		VBlankIntrWait();
 		//asm("swi 0x05");
 	}
 	

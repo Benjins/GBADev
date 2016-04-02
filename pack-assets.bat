@@ -13,3 +13,9 @@ gcc -Wall -std=c11 midi.c -o midi.exe
 echo Built Midi packer
 midi.exe %1
 echo Packed Midi
+
+gcc -Wall -std=c11 vid.c -o vid.exe
+echo Built vid packer
+vid.exe %1
+echo Packed Video
+
