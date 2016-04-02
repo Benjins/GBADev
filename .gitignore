@@ -15,3 +15,7 @@
 #autosaves
 *~
 *.bak
+
+#astley frames and sound
+vidVid/frames/
+vidVid/astley.wav
