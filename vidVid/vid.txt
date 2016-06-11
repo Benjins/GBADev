@@ -1,1 +1,1 @@
-astley frames/astley%d.bmp 1 200
+astley frames/astley%d.bmp 1 20

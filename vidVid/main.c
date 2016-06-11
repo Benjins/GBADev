@@ -72,6 +72,10 @@ static inline void disable_sound(){REG_SND_STAT &= ~0x80;}
 int8 soundBuffer[SOUND_BUFFER_SIZE*3];
 int8* currBuffer = soundBuffer;
 
+void FastSet(const void* src, void* dst, int count){
+	
+}
+
 int main(void){
 	irqInit();
 	irqEnable(IRQ_VBLANK);
@@ -106,7 +110,7 @@ int main(void){
 		}*/
 		
 		if(frameIdx %2 == 0){
-			CpuFastSet(astley.frames[frameIdx/2], (void*)FRAME_MEM, SCREEN_WIDTH*SCREEN_HEIGHT/2);
+			FastSet(astley.frames[frameIdx/2], (void*)FRAME_MEM, SCREEN_WIDTH*SCREEN_HEIGHT/2);
 		}
 		
 		frameIdx++;

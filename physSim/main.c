@@ -133,17 +133,6 @@ static inline void set_sprite_memory(Sprite sprite, volatile uint16* memory){
 	}
 }
 
-/*
-0x0f: ObjAffineSet
-Input:
-r0: source address
-r1: destination address
-r2: number of calculations
-r3: Offset of P matrix elements (2 for bgs, 8 for objects)
-*/
-
-
-
 int main(void) {
 	irqInit();
 	irqEnable(IRQ_VBLANK);
@@ -159,56 +148,44 @@ int main(void) {
 	// Set the display parameters to enable objects, and use a 1D object->tile mapping, and enable BG2
 	REG_DISPLAY = 0x1000 | 0x0040 | 0x0700 | 0x0001;
 	
-	REG_BG2_CNT = BG_CBB(0) | BG_SBB(9) | BG_AFF_32x32;
-	//REG_BG0_CNT = BG_CBB(0) | BG_SBB(8) | BG_AFF_32x32;
+	volatile uint16* ballMem = (uint16 *)tile_memory[4][1];
+	set_sprite_memory(ballSprite, ballMem);
 	
-	for(int i = 0; i < backMap.bgCount; i++){
-		volatile uint16* bg0_tile_mem = (uint16 *)tile_memory[0][i+1];
-		volatile uint16* bg1_tile_mem = (uint16 *)tile_memory[1][i+1];
-		volatile uint16* bg2_tile_mem = (uint16 *)tile_memory[2][i+1];
+	fixed alpha[5] = {0};
+	fixed rotVel[5] = {0};
 	
-		set_sprite_memory(backMap.bgSprites[i], bg0_tile_mem);
-		set_sprite_memory(backMap.bgSprites[i], bg1_tile_mem);
-		set_sprite_memory(backMap.bgSprites[i], bg2_tile_mem);
+	fixed xPos[5] = {};
+	fixed yPos[5] = {};
+	
+	fixed xVel[5] = {};
+	fixed yVel[5] = {};
+	
+	for(int i = 0; i < 5; i++){
+		xPos[i] = makeFixed(30 + i * 18);
+		yPos[i] = makeFixed(50 + i * 2);
+		
+		xVel[i] = 122 * i;
+		yVel[i] = 200 * i - 230;
+		
+		alpha[i] = makeFixed(20 * i + 14);
+		rotVel[i] = makeFixed(10 * i - 100);
+		
+		volatile object_attributes* playerAttribs = &oam_memory[i];
+		playerAttribs->attribute_zero = (30 + i * 18) | (1 << 8) | (1 << 9); 
+		playerAttribs->attribute_one = (50 + i * 2) | 0x4000 | (i << 9); 
+		playerAttribs->attribute_two = 1;
+		
+		aff_memory[i].pa = 256;
+		aff_memory[i].pb = 0;
+		aff_memory[i].pc = 0;
+		aff_memory[i].pd = 256;
 	}
 	
-	volatile uint16* screenmap0Start = &scr_blk_mem[9][0];
-	
-	for(int j = 0; j < 32; j++){
-		for(int i = 0; i < 32; i++){
-			int backMapIdx = j*backMap.map.width+i;
-			
-			int scrMapIdx = j*32+i;
-			screenmap0Start[scrMapIdx] = backMap.map.data[backMapIdx];
-		}
-	}
-	
-	BG_AFFINE bg_aff_default = { 256, 0, 0, 256, 0, 0};
-
-	// Initialize affine registers for bg 2
-	REG_BG2_AFF_MATR = bg_aff_default;
-	
+	int playerIndex = 0;
 	uint32 prevKeys = 0;
 	
-	int xOff = 0;
-	
-	for(int i = 0; i < 16;  i++){
-		volatile uint16* monster_tile_memory = (uint16 *)tile_memory[4][i+2];
-		set_sprite_memory(backMap_bg3, monster_tile_memory);
-	}
-	
-	volatile object_attributes* playerAttribs = &oam_memory[0];
-	
-	playerAttribs->attribute_zero = 50 | (1 << 8) | (1 << 9); 
-	playerAttribs->attribute_one = 50 | 0x4000; 
-	playerAttribs->attribute_two = 0;
-	
-	volatile aff_object_attributes* playerAffAttribs = &aff_memory[0];
-	
-	fixed alpha = makeFixed(180);
-	
-	fixed xScale = FIXED_ONE;
-	fixed yScale = FIXED_ONE;
+	const fixed ballSizeInt = 16;
+	const fixed ballSize = makeFixed(ballSizeInt);
 	
 	while (1) {
 		//VBlankIntrWait();
@@ -216,58 +193,68 @@ int main(void) {
 		
 		uint32 key_states = ~REG_KEY_INPUT & KEY_ANY;
 		
-		fixed sinA = mySin(alpha);
-		fixed cosA = myCos(alpha);
+		for(int i = 0; i < 5; i++){
+			xPos[i] += xVel[i];
+			yPos[i] += yVel[i];
+			
+			if (xPos[i] <= ballSize/2 || xPos[i] >= makeFixed(SCREEN_WIDTH) - ballSize/2){
+				xVel[i] *= -1;
+			}
+			
+			if (yPos[i] <= ballSize/2 || yPos[i] >= makeFixed(SCREEN_HEIGHT) - ballSize/2){
+				yVel[i] *= -1;
+			}
+			
+			alpha[i] += rotVel[i]/60;
+			
+			if(alpha[i] >= makeFixed(360)){
+				alpha[i] -= makeFixed(360);
+			}
+			
+			if(alpha[i] < 0){
+				alpha[i] += makeFixed(360);
+			}
+			
+			fixed sinA = mySin(alpha[i]) >> 2;
+			fixed cosA = myCos(alpha[i]) >> 2;
 		
-		
-		if(alpha > 180){
-			//sinA *= -1;
+			volatile aff_object_attributes* playerAffAttribs = &aff_memory[i];
+			playerAffAttribs->pa = (int16)cosA;
+			playerAffAttribs->pb = (int16)-sinA;
+			playerAffAttribs->pc = (int16)sinA;
+			playerAffAttribs->pd = (int16)cosA;
+			
+			volatile object_attributes* playerAttribs = &oam_memory[i];
+			set_object_position(playerAttribs, truncFixedToInt(xPos[i]) - ballSizeInt, truncFixedToInt(yPos[i]) - ballSizeInt);
 		}
-		
-		if(alpha > 90 && alpha < 270){
-			//cosA *= -1;
-		}
-		
-		playerAffAttribs->pa = (int16)fixMult(cosA, xScale);
-		playerAffAttribs->pb = (int16)fixMult(-sinA, xScale);
-		playerAffAttribs->pc = (int16)fixMult(sinA, yScale);
-		playerAffAttribs->pd = (int16)fixMult(cosA, yScale);
 		
 		if (key_states & BUTTON_A){
-			alpha += FIXED_ONE/2;
+			alpha[playerIndex] += FIXED_ONE/2;
 		}
 		if (key_states & BUTTON_B){
-			alpha -= FIXED_ONE/2;
+			alpha[playerIndex] -= FIXED_ONE/2;
 		}
 		
 		if (key_states & KEY_UP){
-			yScale++;
+			yPos[playerIndex] -= makeFixed(1);
 		}
 		
 		if (key_states & KEY_DOWN){
-			yScale--;
+			yPos[playerIndex] += makeFixed(1);
 		}
 		
 		if (key_states & KEY_LEFT){
-			xScale--;
+			xPos[playerIndex] -= makeFixed(1);
 		}
 		
 		if (key_states & KEY_RIGHT){
-			xScale++;
+			xPos[playerIndex] += makeFixed(1);
 		}
 		
-		if(alpha >= makeFixed(360)){
-			alpha -= makeFixed(360);
+		if (!(key_states & BUTTON_SELECT) && (prevKeys & BUTTON_SELECT)){
+			playerIndex = (playerIndex + 1) % 5;
 		}
-		
-		bg_aff_default.ma++;
-		bg_aff_default.md++;
-		REG_BG2_AFF_MATR = bg_aff_default;
-		
-		//REG_BG2_OFS[0] = xOff;
-		
-		xOff++;
-		
+
 		prevKeys = key_states;
 		
 	}
