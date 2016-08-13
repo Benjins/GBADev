@@ -35,6 +35,14 @@ void UpdateAnimations(AnimationList* animList, TimerList* timers){
 			
 			animList->anims[i].timerId = AddTimer(timers, animList->anims[i].animData.keys[animList->anims[i].frame].duration);
 			set_sprite_memory(*animList->anims[i].animData.keys[animList->anims[i].frame].sprite, animList->anims[i].tileMemory);
+			
+			int tileIndex = ((int)(animList->anims[i].tileMemory) - (int)(tile_memory[4][0]))/sizeof(tile4bpp);
+			int palIdx = animList->anims[i].animData.keys[animList->anims[i].frame].sprite->palIdx;
+			for (int i = 0; i < 128; i++){
+				if ((oam_memory[i].attribute_two & 0x03FF) == tileIndex){
+					oam_memory[i].attribute_two = (oam_memory[i].attribute_two & 0x0FFF) | (palIdx << 12);
+				}
+			}
 		}
 	}
 }
