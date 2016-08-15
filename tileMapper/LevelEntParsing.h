@@ -176,6 +176,38 @@ LevelEntityInstancesVector ReadLevelEntsFromFile(const char* fileName, StructDef
 
 			AdvanceToString(&objectListStream, "{");
 
+			FieldDefVector entFields = gameEntStruct->fields;
+			for (int j = 0; j < entFields.length; j++) {
+				FieldValue val = { 0 };
+				val.type = MetaOther;
+				val.name = entFields.vals[j].fieldName;
+
+				Token fieldType = entFields.vals[j].typeName;
+				if (TOKEN_IS(fieldType, "char") && entFields.vals[j].pointerLevel == 1) {
+					val.type = MetaString;
+				}
+				else if (TOKEN_IS(fieldType, "int") && entFields.vals[j].pointerLevel == 0
+					&& entFields.vals[j].arrayCount == NOT_AN_ARRAY) {
+					val.type = MetaInt;
+				}
+
+				if (val.type != MetaOther) {
+					bool alreadyHasVal = false;
+					for (int k = 0; k < gameEntInst.otherVals.length; k++) {
+						Token fieldName = gameEntInst.otherVals.vals[k].name;
+
+						if (TokenEqual(val.name, fieldName)) {
+							alreadyHasVal = true;
+							break;
+						}
+					}
+
+					if (!alreadyHasVal) {
+						VectorAddFieldValue(&gameEntInst.otherVals, val);
+					}
+				}
+			}
+
 			VectorAddGameEntityInstance(&instanceList.instances, gameEntInst);
 		}
 

@@ -71,7 +71,7 @@ typedef uint16 SCREENBLOCK[1024];
 
 #define ARRAY_LENGTH(x) (sizeof(x)/sizeof((x)[0]))
 
-/*[GameEntity("bg3.bmp")]*/
+/*[GameEntity("z.bmp")]*/
 typedef struct {
 	int16 position[2];
 	const char* whatSay;

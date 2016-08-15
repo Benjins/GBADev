@@ -167,8 +167,11 @@ typedef struct{             \
 } Type##Vector;             \
                             \
 void VectorEnsureCapacity##Type(Type##Vector* vec, int capacity){\
-	int newCapacity = ((capacity + vectorCapacityStep-1)/vectorCapacityStep) * vectorCapacityStep;\
-	if(vec->capacity < newCapacity){\
+	if(vec->capacity < capacity){\
+		int newCapacity = vec->capacity == 0 ? 2 : vec->capacity;\
+		while (newCapacity < capacity){\
+			newCapacity *= 2;\
+		}\
 		Type* newVals = (Type*)malloc(newCapacity*sizeof(Type));\
 		_memcpy(newVals, vec->vals, sizeof(Type)*vec->length);\
 		free(vec->vals);\
@@ -185,6 +188,7 @@ void VectorReset##Type (Type##Vector* vec){ \
 	vec->length = 0; \
 	vec->capacity = 0;\
 	free(vec->vals); \
+	vec->vals = NULL; \
 } \
 void VectorResetWithoutFree##Type (Type##Vector* vec){ \
 	vec->length = 0; \
