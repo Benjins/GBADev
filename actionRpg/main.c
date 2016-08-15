@@ -199,12 +199,13 @@ static inline void set_sprite_memory(Sprite sprite, volatile uint16* memory){
 
 #include "spriteAnim.h"
 
-void SetHealthSprite(volatile uint16* memory, int health){
+void SetHealthSprite(volatile uint16* memory, int health, int maxHealth){
 	for(int i = 0; i < 16; i++){
 		memory[i] = 0;
 	}
 	
-	for(int i = 0; i < health; i++){
+	int healthFactor = (health * 16)/maxHealth;
+	for(int i = 0; i < healthFactor; i++){
 		memory[i/4] |= (1 << (i % 4)*4);
 	}
 }
@@ -231,6 +232,13 @@ typedef enum {
 
 GameMode currMode = FREEWALK;
 
+typedef enum{
+	COMBAT_MENU,
+	ATTACK_MENU
+} CombatSubMode;
+
+CombatSubMode combatMode = COMBAT_MENU;
+
 int currentMonsterFight = -1;
 int shouldEnterCombat = 0;
 int shouldExitCombat = 0;
@@ -249,7 +257,9 @@ const int centerY = SCREEN_HEIGHT/2 - player_width/2;
 	
 int playerX = 0, playerY = 0;
 Direction playerDir = DOWN;
-int playerHealth = 16;
+
+const int maxPlayerHealth = 16;
+int playerHealth = maxPlayerHealth;
 
 volatile uint16* player_health_memory = (uint16 *)tile_memory[4][12];
 
@@ -287,6 +297,7 @@ void AddMonster(int x, int y, int health){
 	level.monsters[level.monsterCount].position[1] = y;
 	level.monsters[level.monsterCount].timerId = AddTimer(&timers, (GetRandom() % 20) + 30);
 	level.monsters[level.monsterCount].currState = PAUSE;
+	level.monsters[level.monsterCount].maxHealth = health;
 	level.monsters[level.monsterCount].health = health;
 	
 	level.monsterCount++;
@@ -299,17 +310,37 @@ void RemoveMonster(int idx){
 
 typedef enum{
 	ATTACK,
-	RUN
+	RUN,
 } CombatOption;
 
 typedef struct{
 	const char* text;
 	CombatOption effect;
-} MenuOption;
+} CombatMenuOption;
 
-MenuOption combatMenu[] = {{"Attack", ATTACK}, {"Run", RUN}};
-
+const CombatMenuOption combatMenu[] = {{"Attack", ATTACK}, {"Run", RUN}};
 int combatMenuIndex = 0;
+
+typedef enum{
+	LIGHT_ATTACK = 0,
+	HEAVY_ATTACK,
+} AttackOption;
+
+typedef struct{
+	int baseAccuracy; // Percentage
+	int basePower; // damage
+	int baseEnergy; // currently unused
+} MoveData;
+
+MoveData moveData[] = {{90, 1, 1}, {40, 3, 4}};
+
+typedef struct{
+	const char* text;
+	AttackOption effect;
+} AttackMenuOption;
+
+const AttackMenuOption attackMenu[] = {{"Light Attack", LIGHT_ATTACK}, {"Heavy Attack", HEAVY_ATTACK}};
+int attackMenuIndex = 0;
 
 void EnterCombat(){
 	if(currentMonsterFight < 0 || currentMonsterFight >= level.monsterCount){
@@ -341,13 +372,30 @@ void EnterCombat(){
 	objectAttribs[1].attribute_one = 0; 
 	objectAttribs[1].attribute_two = 17;
 	
+	objectAttribs[2].attribute_zero = 0;
+	objectAttribs[2].attribute_one = 0; 
+	objectAttribs[2].attribute_two = 18;
+	
+	objectAttribs[3].attribute_zero = 0;
+	objectAttribs[3].attribute_one = 0; 
+	objectAttribs[3].attribute_two = 19; 
+	
+	volatile uint16* monster_healthbar_tile_mem = (uint16 *)tile_memory[4][18];
+	SetHealthSprite(monster_healthbar_tile_mem, level.monsters[currentMonsterFight].health, level.monsters[currentMonsterFight].maxHealth);
+	
+	volatile uint16* player_healthbar_tile_mem = (uint16 *)tile_memory[4][19];
+	SetHealthSprite(player_healthbar_tile_mem, playerHealth, maxPlayerHealth);
+	
 	for(int i = 0; i < ARRAY_LENGTH(combatMenu); i++){
-		PushText(combatMenu[i].text, SCREEN_WIDTH - 80, SCREEN_HEIGHT - 50 + 10*i);
+		PushText(combatMenu[i].text, SCREEN_WIDTH - 120, SCREEN_HEIGHT - 50 + 10*i);
 	}
 	
 	set_object_position(&objectAttribs[0], SCREEN_WIDTH - 50, 30);
+	set_object_position(&objectAttribs[2], 50, 30);
+	set_object_position(&objectAttribs[3], 50, 60);
 	
 	currMode = COMBAT;
+	combatMode = COMBAT_MENU;
 }
 
 void ExitCombat(){
@@ -415,7 +463,7 @@ void ExitCombat(){
 	playerHealthAttribs->attribute_one = 0;
 	playerHealthAttribs->attribute_two = 12;
 	
-	SetHealthSprite(player_health_memory, playerHealth);
+	SetHealthSprite(player_health_memory, playerHealth, maxPlayerHealth);
 	set_object_position(playerHealthAttribs, 16, 16);
 	
 	playerAttribs->attribute_zero = 0; 
@@ -605,7 +653,7 @@ int main(void) {
 			
 			UpdateMonsters(level.monsters, level.monsterCount, &timers, playerX, playerY, &playerHealth);
 			
-			SetHealthSprite(player_health_memory, playerHealth);
+			SetHealthSprite(player_health_memory, playerHealth, maxPlayerHealth);
 			
 			for(int i = 0; i < level.monsterCount; i++){
 				volatile object_attributes* monsterAttrib = &monsterAttribs[i];
@@ -663,30 +711,78 @@ int main(void) {
 		else if(currMode == COMBAT){
 			UpdateTimers(&timers);
 			
-			if((key_states & KEY_DOWN) && !(prevKeys & KEY_DOWN)){
-				combatMenuIndex = (combatMenuIndex + 1) % ARRAY_LENGTH(combatMenu);
-			}
-			if((key_states & KEY_UP) && !(prevKeys & KEY_UP)){
-				combatMenuIndex = (combatMenuIndex + ARRAY_LENGTH(combatMenu) - 1) % ARRAY_LENGTH(combatMenu);
-			}
-			
-			if(!(key_states & BUTTON_A) && (prevKeys & BUTTON_A)){
-				CombatOption effect = combatMenu[combatMenuIndex].effect;
+			if (combatMode == COMBAT_MENU){
+				if((key_states & KEY_DOWN) && !(prevKeys & KEY_DOWN)){
+					combatMenuIndex = (combatMenuIndex + 1) % ARRAY_LENGTH(combatMenu);
+				}
+				if((key_states & KEY_UP) && !(prevKeys & KEY_UP)){
+					combatMenuIndex = (combatMenuIndex + ARRAY_LENGTH(combatMenu) - 1) % ARRAY_LENGTH(combatMenu);
+				}
 				
-				if(effect == ATTACK){
-					level.monsters[currentMonsterFight].health--;
+				if(!(key_states & BUTTON_A) && (prevKeys & BUTTON_A)){
+					CombatOption effect = combatMenu[combatMenuIndex].effect;
+					
+					if(effect == ATTACK){
+						combatMode = ATTACK_MENU;
+						
+						for(int i = 0; i < ARRAY_LENGTH(combatMenu); i++){
+							PopText();
+						}
+						
+						for(int i = 0; i < ARRAY_LENGTH(attackMenu); i++){
+							PushText(attackMenu[i].text, SCREEN_WIDTH - 120, SCREEN_HEIGHT - 50 + 10*i);
+						}
+					}
+					else if(effect == RUN){
+						shouldExitCombat = 1;
+					}
+				}
+				
+				set_object_position(&objectAttribs[1], SCREEN_WIDTH - 130, SCREEN_HEIGHT - 50 + 10*combatMenuIndex);
+			}
+			else if (combatMode == ATTACK_MENU){
+				if((key_states & KEY_DOWN) && !(prevKeys & KEY_DOWN)){
+					attackMenuIndex = (attackMenuIndex + 1) % ARRAY_LENGTH(attackMenu);
+				}
+				if((key_states & KEY_UP) && !(prevKeys & KEY_UP)){
+					attackMenuIndex = (attackMenuIndex + ARRAY_LENGTH(attackMenu) - 1) % ARRAY_LENGTH(attackMenu);
+				}
+				
+				if(!(key_states & BUTTON_A) && (prevKeys & BUTTON_A)){
+					AttackOption effect = attackMenu[attackMenuIndex].effect;
+					
+					playerHealth--;
+					volatile uint16* player_healthbar_tile_mem = (uint16 *)tile_memory[4][19];
+					SetHealthSprite(player_healthbar_tile_mem, playerHealth, maxPlayerHealth);
+					
+					int rng = GetRandom() % 100;
+					if (rng < moveData[effect].baseAccuracy){
+						level.monsters[currentMonsterFight].health -= moveData[effect].basePower;
+						
+						volatile uint16* healthbar_tile_mem = (uint16 *)tile_memory[4][18];
+						SetHealthSprite(healthbar_tile_mem, level.monsters[currentMonsterFight].health, level.monsters[currentMonsterFight].maxHealth);
+					}
 					
 					if(level.monsters[currentMonsterFight].health <= 0){
 						RemoveMonster(currentMonsterFight);
 						shouldExitCombat = 1;
 					}
 				}
-				else if(effect == RUN){
-					shouldExitCombat = 1;
+				
+				if(!(key_states & BUTTON_B) && (prevKeys & BUTTON_B)){
+					combatMode = COMBAT_MENU;
+					
+					for(int i = 0; i < ARRAY_LENGTH(attackMenu); i++){
+						PopText();
+					}
+					
+					for(int i = 0; i < ARRAY_LENGTH(combatMenu); i++){
+						PushText(combatMenu[i].text, SCREEN_WIDTH - 120, SCREEN_HEIGHT - 50 + 10*i);
+					}
 				}
+				
+				set_object_position(&objectAttribs[1], SCREEN_WIDTH - 130, SCREEN_HEIGHT - 50 + 10*attackMenuIndex);
 			}
-			
-			set_object_position(&objectAttribs[1], SCREEN_WIDTH - 90, SCREEN_HEIGHT - 50 + 10*combatMenuIndex);
 		}
 		
 		prevKeys = key_states;

@@ -20,6 +20,7 @@ typedef struct{
 	int health;
 	MonsterState currState;
 	int timerId;
+	int maxHealth;
 } Monster;
 
 inline void ResolveCollisions(int* startPos, int* moveDir, int* outPos){
