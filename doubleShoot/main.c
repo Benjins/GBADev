@@ -118,8 +118,8 @@ static inline void set_sprite_memory(Sprite sprite, volatile uint16* memory){
 
 #define MAX_WHITE_ENEMY_COUNT 16
 #define MAX_GREY_ENEMY_COUNT 16
-#define MAX_WHITE_BULLET_COUNT 20
-#define MAX_GREY_BULLET_COUNT 20
+#define MAX_WHITE_BULLET_COUNT 32
+#define MAX_GREY_BULLET_COUNT 32
 
 volatile object_attributes* playerAttribs = &oam_memory[0];
 volatile object_attributes* whiteEnemyAttribs = &oam_memory[1];
@@ -152,37 +152,60 @@ Entity whiteEnemies[MAX_WHITE_ENEMY_COUNT];
 int greyEnemyCount = 0;
 Entity greyEnemies[MAX_GREY_ENEMY_COUNT];
 
+const int enemySpriteSize = 32;
+
 int whiteBulletCount = 0;
 Entity whiteBullets[MAX_WHITE_BULLET_COUNT];
 int greyBulletCount = 0;
 Entity greyBullets[MAX_GREY_BULLET_COUNT];
 
+const int bulletSpriteSize = 8;
+
 Entity playerEntity;
+
+const int playerSpriteSize = 32;
 
 #define ADD_ENTITY(ents, entCount) &((ents)[(entCount)++])
 
-static inline void RemoveEntity(Entity* ents, int idx, int* entCount, volatile object_attributes* attribs){
-	set_object_position(&attribs[*entCount], -33, -33);
+static inline void RemoveEntity(Entity* ents, int idx, int* entCount){
 	ents[idx] = ents[*entCount - 1];
 	(*entCount)--;
 }
 
-static inline void SetObjectAttribs(volatile object_attributes* attribs, Entity* ents, int entCount){
+static inline void SetObjectAttribs(volatile object_attributes* attribs, Entity* ents, int entCount, int maxCount, int spriteSize){
 	for (int i = 0; i < entCount; i++){
-		int x = roundFixedToInt(ents[i].pos[0]);
-		int y = roundFixedToInt(ents[i].pos[1]);
+		int x = roundFixedToInt(ents[i].pos[0]) - spriteSize/2;
+		int y = roundFixedToInt(ents[i].pos[1]) - spriteSize/2;
 		set_object_position(&attribs[i], x, y);
+	}
+	
+	for (int i = entCount; i < maxCount; i++){
+		set_object_position(&attribs[i], -33, -33);
 	}
 }
 
-static inline void UpdateEntityPositions(Entity* ents, int entCount){
+static inline void UpdateEntityPositionsWrap(Entity* ents, int entCount, fixed speed){
 	for (int i = 0; i < entCount; i++){
 		fixed* moveVec = directionVectors[ents[i].dir];
-		ents[i].pos[0] += moveVec[0];
-		ents[i].pos[1] += moveVec[1];
+		ents[i].pos[0] += fixMult(moveVec[0], speed);
+		ents[i].pos[1] += fixMult(moveVec[1], speed);
 		
-		ents[i].pos[0] = ents[i].pos[0] % makeFixed(255);
-		ents[i].pos[1] = ents[i].pos[1] % makeFixed(255);
+		//ents[i].pos[0] = (ents[i].pos[0] + makeFixed(255)) % makeFixed(255);
+		//ents[i].pos[1] = (ents[i].pos[1] + makeFixed(255)) % makeFixed(255);
+	}
+}
+
+static inline void UpdateEntityPositionsKillOOB(Entity* ents, int* entCount, fixed speed){
+	for (int i = 0; i < *entCount; i++){
+		fixed* moveVec = directionVectors[ents[i].dir];
+		ents[i].pos[0] += fixMult(moveVec[0], speed);
+		ents[i].pos[1] += fixMult(moveVec[1], speed);
+		
+		if (ents[i].pos[0] > makeFixed(SCREEN_WIDTH)  || ents[i].pos[0] < 0
+		 || ents[i].pos[1] > makeFixed(SCREEN_HEIGHT) || ents[i].pos[1] < 0){
+			 RemoveEntity(ents, i, entCount);
+			 i--;
+		 }
 	}
 }
 
@@ -199,7 +222,7 @@ int main(void) {
 	for (int i = 0; i < (sizeof(tile4bpp) / 2) * 4; ++i) { empty_tile_memory[i] = 0x0000; }
 	
 	// Set the display parameters to enable objects, and use a 1D object->tile mapping, and enable BG2
-	REG_DISPLAY = 0x1000 | 0x0040 | 0x0700 | 0x0001;
+	REG_DISPLAY = 0x1000 | 0x0040;
 	
 	{
 		volatile uint16* whiteEnemyTileMem = (uint16 *)tile_memory[4][1];
@@ -216,6 +239,12 @@ int main(void) {
 		
 		volatile uint16* whiteBulletTileMem = (uint16 *)tile_memory[4][50];
 		set_sprite_memory(whiteBulletSprite, whiteBulletTileMem);
+	}
+	
+	for (int i = 0; i < 128; i++){
+		oam_memory[i].attribute_zero = 0;
+		oam_memory[i].attribute_one = 0;
+		oam_memory[i].attribute_two = 0;
 	}
 	
 	playerAttribs->attribute_zero = 0;
@@ -257,6 +286,11 @@ int main(void) {
 	whiteEnemy->pos[1] = makeFixed(50);
 	whiteEnemy->dir = D_Down;
 	
+	Entity* greyEnemy = ADD_ENTITY(greyEnemies, greyEnemyCount);
+	greyEnemy->pos[0] = makeFixed(120);
+	greyEnemy->pos[1] = makeFixed(30);
+	greyEnemy->dir = D_Left;
+	
 	playerEntity.pos[0] = makeFixed(80);
 	playerEntity.pos[1] = makeFixed(110);
 	
@@ -285,16 +319,31 @@ int main(void) {
 			playerEntity.dir = D_Right;
 		}
 		
-		UpdateEntityPositions(whiteEnemies, whiteEnemyCount);
-		UpdateEntityPositions(greyEnemies, greyEnemyCount);
-		UpdateEntityPositions(whiteBullets, whiteBulletCount);
-		UpdateEntityPositions(greyBullets, greyBulletCount);
+		if (!(key_states & BUTTON_A) && (prevKeys & BUTTON_A)){
+			Entity* greyBullet = ADD_ENTITY(greyBullets, greyBulletCount);
+			greyBullet->pos[0] = playerEntity.pos[0] + 10 * directionVectors[playerEntity.dir][0];
+			greyBullet->pos[1] = playerEntity.pos[1] + 10 * directionVectors[playerEntity.dir][1];
+			greyBullet->dir = playerEntity.dir;
+		}
 		
-		SetObjectAttribs(playerAttribs, &playerEntity, 1);
-		SetObjectAttribs(whiteEnemyAttribs, whiteEnemies, whiteEnemyCount);
-		SetObjectAttribs(greyEnemyAttribs, greyEnemies, greyEnemyCount);
-		SetObjectAttribs(whiteBulletAttribs, whiteBullets, whiteBulletCount);
-		SetObjectAttribs(greyBulletAttribs, greyBullets, greyBulletCount);
+		if (!(key_states & BUTTON_B) && (prevKeys & BUTTON_B)){
+			Entity* whiteBullet = ADD_ENTITY(whiteBullets, whiteBulletCount);
+			whiteBullet->pos[0] = playerEntity.pos[0] + 10 * directionVectors[playerEntity.dir][0];
+			whiteBullet->pos[1] = playerEntity.pos[1] + 10 * directionVectors[playerEntity.dir][1];
+			whiteBullet->dir = playerEntity.dir;
+		}
+		
+		UpdateEntityPositionsWrap(whiteEnemies, whiteEnemyCount, makeFixed(1));
+		UpdateEntityPositionsWrap(greyEnemies, greyEnemyCount, makeFixed(1));
+
+		UpdateEntityPositionsKillOOB(whiteBullets, &whiteBulletCount, fixedFromFlt(2.5f));
+		UpdateEntityPositionsKillOOB(greyBullets, &greyBulletCount, fixedFromFlt(2.2f));
+		
+		SetObjectAttribs(playerAttribs, &playerEntity, 1, 1, playerSpriteSize);
+		SetObjectAttribs(whiteEnemyAttribs, whiteEnemies, whiteEnemyCount, MAX_WHITE_ENEMY_COUNT, enemySpriteSize);
+		SetObjectAttribs(greyEnemyAttribs, greyEnemies, greyEnemyCount, MAX_GREY_ENEMY_COUNT, enemySpriteSize);
+		SetObjectAttribs(whiteBulletAttribs, whiteBullets, whiteBulletCount, MAX_WHITE_BULLET_COUNT, bulletSpriteSize);
+		SetObjectAttribs(greyBulletAttribs, greyBullets, greyBulletCount, MAX_GREY_BULLET_COUNT, bulletSpriteSize);
 		
 		prevKeys = key_states;
 	}
