@@ -336,7 +336,7 @@ int main(void) {
 		UpdateEntityPositionsWrap(whiteEnemies, whiteEnemyCount, makeFixed(1));
 		UpdateEntityPositionsWrap(greyEnemies, greyEnemyCount, makeFixed(1));
 
-		UpdateEntityPositionsKillOOB(whiteBullets, &whiteBulletCount, fixedFromFlt(2.5f));
+		UpdateEntityPositionsKillOOB(whiteBullets, &whiteBulletCount, fixedFromFlt(2.2f));
 		UpdateEntityPositionsKillOOB(greyBullets, &greyBulletCount, fixedFromFlt(2.2f));
 		
 		SetObjectAttribs(playerAttribs, &playerEntity, 1, 1, playerSpriteSize);
