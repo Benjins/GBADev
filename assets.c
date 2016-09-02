@@ -464,9 +464,9 @@ void WriteAsset(char* folderName, Token varName, Token fileName, FILE* assetHead
 				int oldIdx = indices[k];
 				for(int b = 0; b < mergeBank.size; b++){
 					if(palette->banks[i].cols[b] == newBank.cols[oldIdx]){
-						if(indices[k] != b){
-							printf("Changing index %d to %d (col:%d).\n", indices[k], b, palette->banks[i].cols[b]);
-						}
+						//if(indices[k] != b){
+						//	printf("Changing index %d to %d (col:%d).\n", indices[k], b, palette->banks[i].cols[b]);
+						//}
 						indices[k] = b;
 						break;
 					}
@@ -505,7 +505,7 @@ void WritePalette(Palette* palette, FILE* assetHeader){
 		for(int j = palette->banks[i].size; j < 16; j++){
 			fprintf(assetHeader, "0,");
 		}
-		printf("\n\t");
+		fprintf(assetHeader, "\n\t");
 	}
 	fprintf(assetHeader, "};\n");
 }
