@@ -190,8 +190,8 @@ static inline void UpdateEntityPositionsWrap(Entity* ents, int entCount, fixed s
 		ents[i].pos[0] += fixMult(moveVec[0], speed);
 		ents[i].pos[1] += fixMult(moveVec[1], speed);
 		
-		//ents[i].pos[0] = (ents[i].pos[0] + makeFixed(255)) % makeFixed(255);
-		//ents[i].pos[1] = (ents[i].pos[1] + makeFixed(255)) % makeFixed(255);
+		ents[i].pos[0] = (ents[i].pos[0] + makeFixed(255)) % makeFixed(255);
+		ents[i].pos[1] = (ents[i].pos[1] + makeFixed(255)) % makeFixed(255);
 	}
 }
 
@@ -206,6 +206,30 @@ static inline void UpdateEntityPositionsKillOOB(Entity* ents, int* entCount, fix
 			 RemoveEntity(ents, i, entCount);
 			 i--;
 		 }
+	}
+}
+
+#define FIXED_ABS_DIFF(a, b) (((a) > (b)) ? (a) - (b) : (b) - (a))
+
+static_assert(FIXED_ABS_DIFF(12, 15) == 3, "FIXED_ABS_DIFF works");
+static_assert(FIXED_ABS_DIFF(15, 12) == 3, "FIXED_ABS_DIFF works");
+
+static inline void KillEntitiesIfCollisions(Entity* ents1, int* entityCount1, int entitySize1, Entity* ents2, int* entityCount2, int entitySize2){
+	const fixed entRadiiTotal = makeFixed(entitySize1/2) + makeFixed(entitySize2/2);
+
+	for (int i = 0; i < *entityCount1; i++){
+		for (int j = 0; j < *entityCount2; j++){
+			fixed xDiff = FIXED_ABS_DIFF(ents1[i].pos[0], ents2[j].pos[0]);
+			fixed yDiff = FIXED_ABS_DIFF(ents1[i].pos[1], ents2[j].pos[1]);
+
+			if (xDiff < entRadiiTotal && yDiff < entRadiiTotal){
+				ents1[i].dir = D_Right;
+				RemoveEntity(ents1, i, entityCount1);
+				RemoveEntity(ents2, j, entityCount2);
+				i--;
+				break;
+			}
+		}
 	}
 }
 
@@ -333,11 +357,14 @@ int main(void) {
 			whiteBullet->dir = playerEntity.dir;
 		}
 		
-		UpdateEntityPositionsWrap(whiteEnemies, whiteEnemyCount, makeFixed(1));
-		UpdateEntityPositionsWrap(greyEnemies, greyEnemyCount, makeFixed(1));
+		UpdateEntityPositionsWrap(whiteEnemies, whiteEnemyCount, fixedFromFlt(0.8f));
+		UpdateEntityPositionsWrap(greyEnemies, greyEnemyCount, fixedFromFlt(0.8f));
 
 		UpdateEntityPositionsKillOOB(whiteBullets, &whiteBulletCount, fixedFromFlt(2.2f));
 		UpdateEntityPositionsKillOOB(greyBullets, &greyBulletCount, fixedFromFlt(2.2f));
+		
+		KillEntitiesIfCollisions(whiteEnemies, &whiteEnemyCount, enemySpriteSize, whiteBullets, &whiteBulletCount, bulletSpriteSize);
+		KillEntitiesIfCollisions(greyEnemies, &greyEnemyCount, enemySpriteSize, greyBullets, &greyBulletCount, bulletSpriteSize);
 		
 		SetObjectAttribs(playerAttribs, &playerEntity, 1, 1, playerSpriteSize);
 		SetObjectAttribs(whiteEnemyAttribs, whiteEnemies, whiteEnemyCount, MAX_WHITE_ENEMY_COUNT, enemySpriteSize);
