@@ -3,3 +3,4 @@ greyEnemySprite:grey_enemy.bmp
 whiteBulletSprite:white_bullet.bmp
 greyBulletSprite:grey_bullet.bmp
 playerSprite:player_sprite.bmp
+playerSpriteHoriz:player_sprite_horiz.bmp

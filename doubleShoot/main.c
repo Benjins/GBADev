@@ -44,6 +44,7 @@ typedef tile4bpp tile_block[512];
 #define OBJECT_ATTRIBUTE_ZERO_Y_MASK  0xFF
 #define OBJECT_ATTRIBUTE_ONE_X_MASK  0x1FF
 #define OBJECT_ATTRIBUTE_ONE_HORIZONTAL_FLIP_MASK  0x1000
+#define OBJECT_ATTRIBUTE_ONE_VERTICAL_FLIP_MASK  0x2000
 
 #define oam_memory ((volatile object_attributes *)MEM_OAM)
 #define aff_memory ((volatile aff_object_attributes*)MEM_OAM)
@@ -91,6 +92,10 @@ static inline void set_object_position(volatile object_attributes *object, int x
 
 static inline void set_object_horizontal_flip(volatile object_attributes *object, int isFlip){
 	object->attribute_one = (object->attribute_one & ~OBJECT_ATTRIBUTE_ONE_HORIZONTAL_FLIP_MASK) | (isFlip ? OBJECT_ATTRIBUTE_ONE_HORIZONTAL_FLIP_MASK : 0);
+}
+
+static inline void set_object_vertical_flip(volatile object_attributes* object, int isFlip){
+	object->attribute_one = (object->attribute_one & ~OBJECT_ATTRIBUTE_ONE_VERTICAL_FLIP_MASK) | (isFlip ? OBJECT_ATTRIBUTE_ONE_VERTICAL_FLIP_MASK : 0);
 }
 
 // Clamp 'value' in the range 'min' to 'max' (inclusive).
@@ -316,6 +321,9 @@ int main(void) {
 		
 		volatile uint16* whiteBulletTileMem = (uint16 *)tile_memory[4][50];
 		set_sprite_memory(whiteBulletSprite, whiteBulletTileMem);
+		
+		volatile uint16* playerHorizTileMem = (uint16 *)tile_memory[4][51];
+		set_sprite_memory(playerSpriteHoriz, playerHorizTileMem);
 	}
 	
 	for (int i = 0; i < 128; i++){
@@ -398,6 +406,36 @@ int main(void) {
 			playerEntity.dir = D_Right;
 		}
 		
+		switch (playerEntity.dir){
+			case D_Up: {
+				set_object_horizontal_flip(playerAttribs, false);
+				set_object_vertical_flip(playerAttribs, false);
+				playerAttribs->attribute_two = 33;
+			} break;
+			
+			case D_Down: {
+				set_object_horizontal_flip(playerAttribs, false);
+				set_object_vertical_flip(playerAttribs, true);
+				playerAttribs->attribute_two = 33;
+			} break;
+			
+			case D_Left: {
+				set_object_horizontal_flip(playerAttribs, true);
+				set_object_vertical_flip(playerAttribs, false);
+				playerAttribs->attribute_two = 51;
+			} break;
+			
+			case D_Right: {
+				set_object_horizontal_flip(playerAttribs, false);
+				set_object_vertical_flip(playerAttribs, false);
+				playerAttribs->attribute_two = 51;
+			} break;
+			
+			default: {
+				// Uh....
+			} break;
+		}
+		
 		if (!(key_states & BUTTON_A) && (prevKeys & BUTTON_A)){
 			Entity* greyBullet = ADD_ENTITY(greyBullets, greyBulletCount);
 			greyBullet->pos[0] = playerEntity.pos[0] + 10 * directionVectors[playerEntity.dir][0];
@@ -425,11 +463,13 @@ int main(void) {
 		SplitEnemiesAndKillBulletsIfCollide(greyEnemies,  &greyEnemyCount,  enemySpriteSize, whiteBullets, &whiteBulletCount, bulletSpriteSize);
 		
 		if (CheckIfCollisions(whiteEnemies, whiteEnemyCount, enemySpriteSize, &playerEntity, 1, playerSpriteSize) 
-		 || CheckIfCollisions(greyEnemies, greyEnemyCount, enemySpriteSize, &playerEntity, 1, playerSpriteSize)){
+		 || CheckIfCollisions(greyEnemies, greyEnemyCount, enemySpriteSize, &playerEntity, 1, playerSpriteSize)
+		|| ((prevKeys & BUTTON_SELECT) && !(key_states & BUTTON_SELECT))){
 			whiteEnemyCount = 0;
 			greyEnemyCount = 0;
 			whiteBulletCount = 0;
 			greyBulletCount = 0;
+			prevKeys = key_states;
 			goto RESTART;
 		}
 		
