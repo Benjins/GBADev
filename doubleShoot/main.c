@@ -116,8 +116,8 @@ static inline void set_sprite_memory(Sprite sprite, volatile uint16* memory){
 	}
 }
 
-#define MAX_WHITE_ENEMY_COUNT 16
-#define MAX_GREY_ENEMY_COUNT 16
+#define MAX_WHITE_ENEMY_COUNT 24
+#define MAX_GREY_ENEMY_COUNT 24
 #define MAX_WHITE_BULLET_COUNT 32
 #define MAX_GREY_BULLET_COUNT 32
 
@@ -152,7 +152,7 @@ Entity whiteEnemies[MAX_WHITE_ENEMY_COUNT];
 int greyEnemyCount = 0;
 Entity greyEnemies[MAX_GREY_ENEMY_COUNT];
 
-const int enemySpriteSize = 32;
+const int enemySpriteSize = 24;
 
 int whiteBulletCount = 0;
 Entity whiteBullets[MAX_WHITE_BULLET_COUNT];
@@ -223,7 +223,6 @@ static inline void KillEntitiesIfCollisions(Entity* ents1, int* entityCount1, in
 			fixed yDiff = FIXED_ABS_DIFF(ents1[i].pos[1], ents2[j].pos[1]);
 
 			if (xDiff < entRadiiTotal && yDiff < entRadiiTotal){
-				ents1[i].dir = D_Right;
 				RemoveEntity(ents1, i, entityCount1);
 				RemoveEntity(ents2, j, entityCount2);
 				i--;
@@ -231,6 +230,60 @@ static inline void KillEntitiesIfCollisions(Entity* ents1, int* entityCount1, in
 			}
 		}
 	}
+}
+
+static inline void SplitEnemiesAndKillBulletsIfCollide( Entity* enemyEnts, int* enemyEntCount, int enemySize,
+														Entity* bulletEnts, int* bulletEntCount, int bulletSize){
+	const fixed entRadiiTotal = makeFixed(enemySize/2) + makeFixed(bulletSize/2);
+
+	for (int i = 0; i < *enemyEntCount; i++){
+		for (int j = 0; j < *bulletEntCount; j++){
+			fixed xDiff = FIXED_ABS_DIFF(enemyEnts[i].pos[0], bulletEnts[j].pos[0]);
+			fixed yDiff = FIXED_ABS_DIFF(enemyEnts[i].pos[1], bulletEnts[j].pos[1]);
+
+			if (xDiff < entRadiiTotal && yDiff < entRadiiTotal){
+				if (enemyEnts[i].dir == D_Right || enemyEnts[i].dir == D_Left){
+					Entity* newEnt1 = ADD_ENTITY(enemyEnts, *enemyEntCount);
+					
+					newEnt1->pos[0] = enemyEnts[i].pos[0];
+					newEnt1->pos[1] = enemyEnts[i].pos[1];
+					newEnt1->dir = D_Up;
+					
+					enemyEnts[i].dir = D_Down;
+				}
+				else{
+					Entity* newEnt1 = ADD_ENTITY(enemyEnts, *enemyEntCount);
+					
+					newEnt1->pos[0] = enemyEnts[i].pos[0];
+					newEnt1->pos[1] = enemyEnts[i].pos[1];
+					newEnt1->dir = D_Left;
+					
+					enemyEnts[i].dir = D_Right;
+				}
+				
+				RemoveEntity(bulletEnts, j, bulletEntCount);
+				break;
+			}
+		}
+	}
+}
+
+static inline int CheckIfCollisions(Entity* ents1, int ent1Count, int ent1Size, Entity* ents2, int ent2Count, int ent2Size){
+	const fixed entRadiiTotal = makeFixed(ent1Size/2) + makeFixed(ent2Size/2);
+
+	for (int i = 0; i < ent1Count; i++){
+		for (int j = 0; j < ent2Count; j++){
+			fixed xDiff = FIXED_ABS_DIFF(ents1[i].pos[0], ents2[j].pos[0]);
+			fixed yDiff = FIXED_ABS_DIFF(ents1[i].pos[1], ents2[j].pos[1]);
+
+			if (xDiff < entRadiiTotal && yDiff < entRadiiTotal){
+				return 1;
+			}
+		}
+	}
+	
+	
+	return 0;
 }
 
 int main(void) {
@@ -305,6 +358,8 @@ int main(void) {
 	
 	uint32 prevKeys = 0;
 	
+	RESTART:
+	
 	Entity* whiteEnemy = ADD_ENTITY(whiteEnemies, whiteEnemyCount);
 	whiteEnemy->pos[0] = makeFixed(50);
 	whiteEnemy->pos[1] = makeFixed(50);
@@ -364,7 +419,19 @@ int main(void) {
 		UpdateEntityPositionsKillOOB(greyBullets, &greyBulletCount, fixedFromFlt(2.2f));
 		
 		KillEntitiesIfCollisions(whiteEnemies, &whiteEnemyCount, enemySpriteSize, whiteBullets, &whiteBulletCount, bulletSpriteSize);
-		KillEntitiesIfCollisions(greyEnemies, &greyEnemyCount, enemySpriteSize, greyBullets, &greyBulletCount, bulletSpriteSize);
+		KillEntitiesIfCollisions(greyEnemies,  &greyEnemyCount,  enemySpriteSize, greyBullets,  &greyBulletCount,  bulletSpriteSize);
+		
+		SplitEnemiesAndKillBulletsIfCollide(whiteEnemies, &whiteEnemyCount, enemySpriteSize, greyBullets,  &greyBulletCount,  bulletSpriteSize);
+		SplitEnemiesAndKillBulletsIfCollide(greyEnemies,  &greyEnemyCount,  enemySpriteSize, whiteBullets, &whiteBulletCount, bulletSpriteSize);
+		
+		if (CheckIfCollisions(whiteEnemies, whiteEnemyCount, enemySpriteSize, &playerEntity, 1, playerSpriteSize) 
+		 || CheckIfCollisions(greyEnemies, greyEnemyCount, enemySpriteSize, &playerEntity, 1, playerSpriteSize)){
+			whiteEnemyCount = 0;
+			greyEnemyCount = 0;
+			whiteBulletCount = 0;
+			greyBulletCount = 0;
+			goto RESTART;
+		}
 		
 		SetObjectAttribs(playerAttribs, &playerEntity, 1, 1, playerSpriteSize);
 		SetObjectAttribs(whiteEnemyAttribs, whiteEnemies, whiteEnemyCount, MAX_WHITE_ENEMY_COUNT, enemySpriteSize);
