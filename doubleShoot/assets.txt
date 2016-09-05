@@ -4,3 +4,4 @@ whiteBulletSprite:white_bullet.bmp
 greyBulletSprite:grey_bullet.bmp
 playerSprite:player_sprite.bmp
 playerSpriteHoriz:player_sprite_horiz.bmp
+playerSpriteDiag:player_sprite_diag.bmp
