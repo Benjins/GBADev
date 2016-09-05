@@ -1,4 +1,6 @@
-declare -a projects=("topDown" "actionRpg" "sdkTest", "doubleShoot")
+set -e
+
+declare -a projects=("topDown" "actionRpg" "sdkTest" "doubleShoot")
 
 #wd=`pwd`
 #echo "export DEVKITPRO=$wd/devkitpro" >> ~/.bashrc
