@@ -51,9 +51,6 @@ static inline void disable_sound(){REG_SND_STAT &= ~0x80;}
 // Timer flags
 #define TIMER_ENABLED       0x0080
 
-#include <gba_interrupt.h>
-#include <gba_systemcalls.h>
-
 #define SCREEN_WIDTH  240
 #define SCREEN_HEIGHT 160
 
@@ -61,6 +58,7 @@ static inline void disable_sound(){REG_SND_STAT &= ~0x80;}
 #define MEM_VRAM 0x06000000
 #define FRAME_MEM ((volatile uint16*)MEM_VRAM)
 #define REG_DISPLAY        (*((volatile uint32*)(MEM_IO)))
+#define REG_DISPSTAT       (*((volatile uint16 *)(MEM_IO + 0x0004)))
 #define REG_DISPLAY_VCOUNT (*((volatile uint32 *)(MEM_IO + 0x0006)))
 
 #define REG_DISPLAY_STAT (*((volatile uint16*)(MEM_IO + 0x04)))
@@ -72,13 +70,30 @@ static inline void disable_sound(){REG_SND_STAT &= ~0x80;}
 int8 soundBuffer[SOUND_BUFFER_SIZE*3];
 int8* currBuffer = soundBuffer;
 
-void FastSet(const void* src, void* dst, int count){
-	
+typedef void ( * IntFn)(void);
+
+#define INT_VECTOR	*(IntFn *)(0x03007ffc)
+
+#define BNS_REG_IE  (*(volatile uint16*)0x04000200)
+#define BNS_REG_IF  (*(volatile uint16*)0x04000202)
+#define BNS_REG_IME (*(volatile uint16*)0x04000208)
+
+extern void InterruptMain() __attribute__((section(".iwram")));
+
+#define LCDC_VBL (1 << 3)
+#define IRQ_VBLANK (1 << 0)
+
+void CpuFastSet( const void *src,  void *dst, uint32 mode){
+	asm("swi 0x05");
 }
 
-int main(void){
-	irqInit();
-	irqEnable(IRQ_VBLANK);
+int main(void) {
+	INT_VECTOR = InterruptMain;
+	
+	BNS_REG_IME	= 0;
+	REG_DISPSTAT |= LCDC_VBL;
+	BNS_REG_IE |= IRQ_VBLANK;
+	BNS_REG_IME	= 1;
 	
 	REG_DISPLAY = 0x0403;
 	
@@ -110,7 +125,7 @@ int main(void){
 		}*/
 		
 		if(frameIdx %2 == 0){
-			FastSet(astley.frames[frameIdx/2], (void*)FRAME_MEM, SCREEN_WIDTH*SCREEN_HEIGHT/2);
+			CpuFastSet(astley.frames[frameIdx/2], (void*)FRAME_MEM, SCREEN_WIDTH*SCREEN_HEIGHT/2);
 		}
 		
 		frameIdx++;
@@ -139,8 +154,8 @@ int main(void){
 			currBuffer = soundBuffer;
 		}
 		
-		VBlankIntrWait();
-		//asm("swi 0x05");
+		//VBlankIntrWait();
+		asm("swi 0x05");
 	}
 	
 	return 0;

@@ -1,5 +1,3 @@
-#include <gba_interrupt.h>
-
 typedef unsigned char uint8;
 typedef unsigned short uint16;
 typedef unsigned int uint32;
@@ -27,6 +25,7 @@ typedef tile4bpp tile_block[512];
 #define MEM_OAM  0x07000000
 
 #define REG_DISPLAY        (*((volatile uint32 *)(MEM_IO)))
+#define REG_DISPSTAT       (*((volatile uint16 *)(MEM_IO + 0x0004)))
 #define REG_DISPLAY_VCOUNT (*((volatile uint32 *)(MEM_IO + 0x0006)))
 #define REG_KEY_INPUT      (*((volatile uint32 *)(MEM_IO + 0x0130)))
 
@@ -421,10 +420,26 @@ void ExecuteMenuAction(MenuAction action){
 	}
 }
 
+typedef void ( * IntFn)(void);
+
+#define INT_VECTOR	*(IntFn *)(0x03007ffc)
+
+#define BNS_REG_IE  (*(volatile uint16*)0x04000200)
+#define BNS_REG_IF  (*(volatile uint16*)0x04000202)
+#define BNS_REG_IME (*(volatile uint16*)0x04000208)
+
+extern void InterruptMain() __attribute__((section(".iwram")));
+
+#define LCDC_VBL (1 << 3)
+#define IRQ_VBLANK (1 << 0)
+
 int main(void) {
+	INT_VECTOR = InterruptMain;
 	
-	irqInit();
-	irqEnable(IRQ_VBLANK);
+	BNS_REG_IME	= 0;
+	REG_DISPSTAT |= LCDC_VBL;
+	BNS_REG_IE |= IRQ_VBLANK;
+	BNS_REG_IME	= 1;
 	
 	volatile uint16* empty_tile_memory = (uint16 *)tile_memory[4][0];
 	for (int i = 0; i < (sizeof(tile4bpp) / 2) * 4; ++i) { empty_tile_memory[i] = 0; }

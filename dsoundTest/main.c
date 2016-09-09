@@ -56,8 +56,6 @@ int8* currBuffer = soundBuffer;
 // Timer flags
 #define TIMER_ENABLED       0x0080
 
-#include <gba_interrupt.h>
-
 #define SCREEN_WIDTH  240
 #define SCREEN_HEIGHT 160
 
@@ -65,7 +63,7 @@ int8* currBuffer = soundBuffer;
 #define MEM_VRAM 0x06000000
 #define FRAME_MEM ((volatile uint16*)MEM_VRAM)
 #define REG_DISPLAY        (*((volatile uint32*)(MEM_IO)))
-
+#define REG_DISPSTAT       (*((volatile uint16 *)(MEM_IO + 0x0004)))
 #define REG_DISPLAY_STAT (*((volatile uint16*)(MEM_IO + 0x04)))
 
 /*
@@ -77,19 +75,26 @@ int8* currBuffer = soundBuffer;
 #include "sounds.h"
 #include "midi.h"
 
-int main(void){
-	irqInit();
-	//REG_IME = 1;
+typedef void ( * IntFn)(void);
 
-	uint16 prevIme = REG_IME;
-	REG_IME = 0;
+#define INT_VECTOR	*(IntFn *)(0x03007ffc)
 
-	REG_DISPLAY_STAT = 0x0008;
-	REG_IE = 1;
+#define BNS_REG_IE  (*(volatile uint16*)0x04000200)
+#define BNS_REG_IF  (*(volatile uint16*)0x04000202)
+#define BNS_REG_IME (*(volatile uint16*)0x04000208)
 
-	REG_IME = prevIme;
+extern void InterruptMain() __attribute__((section(".iwram")));
+
+#define LCDC_VBL (1 << 3)
+#define IRQ_VBLANK (1 << 0)
+
+int main(void) {
+	INT_VECTOR = InterruptMain;
 	
-	//irqEnable(IRQ_VBLANK);
+	BNS_REG_IME	= 0;
+	REG_DISPSTAT |= LCDC_VBL;
+	BNS_REG_IE |= IRQ_VBLANK;
+	BNS_REG_IME	= 1;
 	
 	REG_DISPLAY = 0x0403;
 	
