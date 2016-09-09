@@ -1,45 +1,6 @@
-typedef unsigned char uint8;
-typedef unsigned short uint16;
-typedef unsigned int uint32;
+#include "../common/gba.h"
 
-typedef char int8;
-typedef short int16;
-typedef int int32;
-
-typedef uint16 rgb15;
-
-#define SCREEN_WIDTH  240
-#define SCREEN_HEIGHT 160
-
-#define MEM_IO   0x04000000
-#define MEM_PAL  0x05000000
-#define MEM_VRAM 0x06000000
-#define MEM_OAM  0x07000000
-
-#define FRAME_MEM ((volatile uint16*)MEM_VRAM)
-
-#define REG_DISPLAY        (*((volatile uint32 *)(MEM_IO)))
-#define REG_DISPSTAT       (*((volatile uint16 *)(MEM_IO + 0x0004)))
-#define REG_DISPLAY_VCOUNT (*((volatile uint32 *)(MEM_IO + 0x0006)))
-#define REG_KEY_INPUT      (*((volatile uint32 *)(MEM_IO + 0x0130)))
-
-#define KEY_UP     0x0040
-#define KEY_DOWN   0x0080
-#define KEY_LEFT   0x0020
-#define KEY_RIGHT  0x0010
-#define KEY_ANY    0x03FF
-#define BUTTON_A 0x0001
-#define BUTTON_B 0x0002
-#define BUTTON_SELECT 0x0004
-#define BUTTON_START 0x0008
-#define BUTTON_R 0x0100
-#define BUTTON_L 0x0200
-
-static inline int clamp(int value, int min, int max) { return (value < min ? min : (value > max ? max : value)); }
-
-static inline int abs(int value) { return (value >= 0 ? value : -value); }
-
-#include "fixed.h"
+#include "../common/fixed.c"
 
 typedef struct{
 	union{
@@ -90,18 +51,33 @@ void AddWall(Wall wall){
 	wallCount++;
 }
 
-typedef void ( * IntFn)(void);
+#define FRAME_MEM ((volatile uint16*)MEM_VRAM)
 
-#define INT_VECTOR	*(IntFn *)(0x03007ffc)
-
-#define BNS_REG_IE  (*(volatile uint16*)0x04000200)
-#define BNS_REG_IF  (*(volatile uint16*)0x04000202)
-#define BNS_REG_IME (*(volatile uint16*)0x04000208)
-
-extern void InterruptMain() __attribute__((section(".iwram")));
-
-#define LCDC_VBL (1 << 3)
-#define IRQ_VBLANK (1 << 0)
+static inline fixed mySqrt(fixed in){
+	int reduce = (in >= makeFixed(4));
+	if(reduce){
+		in /= 4;
+	}
+	
+	in -= FIXED_ONE;
+	
+	fixed guess = FIXED_ONE + in/2 - fixMult(in,in)/8 + fixPow(in,3)/16 - 5*fixPow(in,4)/128 + 7*fixPow(in,5)/256;
+	
+	in += FIXED_ONE;
+	
+	for(int i = 0; i < 10; i++){
+		if(guess == 0){
+			break;
+		}
+		guess = (guess + fixDiv(in, guess))/2;
+	}
+	
+	if(reduce){
+		guess *= 2;
+	}
+	
+	return abs(guess);
+}
 
 int main(void) {
 	INT_VECTOR = InterruptMain;
@@ -129,12 +105,7 @@ int main(void) {
 	while(1){
 		asm("swi 0x05");
 		
-		/*
-		for(int i = 0; i < SCREEN_WIDTH*SCREEN_HEIGHT; i++){
-			FRAME_MEM[i] = 0;
-		}
-		*/
-		
+
 		keyStates = ~REG_KEY_INPUT & KEY_ANY;
 		
 		Vec2 playerForward = AngleToVec(playerAngle);

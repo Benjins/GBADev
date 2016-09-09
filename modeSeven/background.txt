@@ -1,1 +1,0 @@
-backMap:backMap.bmp:bgs1.bmp,bgs2.bmp,bgs3.bmp,bgs4.bmp

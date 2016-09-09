@@ -1,6 +1,6 @@
 @echo off
 
-build.bat %1
+call build.bat %1
 
 echo Done building %1.
 
