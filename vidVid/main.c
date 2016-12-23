@@ -7,8 +7,28 @@
 int8 soundBuffer[SOUND_BUFFER_SIZE*3];
 int8* currBuffer = soundBuffer;
 
-void CpuFastSet( const void *src,  void *dst, uint32 mode){
-	asm("swi 0x05");
+void CpuFastSet( const void *src,  void *dst, uint32 count){
+//	int count = (mode & ~(1 << 26));
+//	int* _dst = (int*)dst;
+//	const int* _src = (const int*)src;
+//	for (int i = 0; i < count; i++){
+//		_dst[i] = _src[i];
+//	}
+
+	asm("push    {r8, r9, r10}");
+	asm("mov r8,  r0");
+	asm("mov r9,  r1");
+	asm("mov r10, r2");
+	asm("loop_start:");
+	
+	asm("ldmia r8, {r0-r7}");
+	asm("stmia r9, {r0-r7}");
+	asm("add r8, r8, #32");
+	asm("add r9, r9, #32");
+	asm("sub r10, r10, #32");
+	asm("blez r10 loop_start");
+
+	asm("pop    {r8, r9, r10}");
 }
 
 #define FRAME_MEM ((volatile uint16*)MEM_VRAM)
@@ -24,7 +44,7 @@ int main(void) {
 	REG_DISPLAY = 0x0403;
 	
 	int zeroFill[8] = {0};
-	CpuFastSet(zeroFill, (void*)FRAME_MEM, (SCREEN_WIDTH*SCREEN_HEIGHT/2) | (1 << 26));
+	//CpuFastSet(zeroFill, (void*)FRAME_MEM, (SCREEN_WIDTH*SCREEN_HEIGHT/2) | (1 << 26));
 	
 	int frameIdx = 0;
 	
@@ -50,9 +70,10 @@ int main(void) {
 			FRAME_MEM[i] = astley.frames[frameIdx][i];
 		}*/
 		
-		if(frameIdx %2 == 0){
+		asm("swi 0x05");
+		//if((frameIdx % 2) == 0){
 			CpuFastSet(astley.frames[frameIdx/2], (void*)FRAME_MEM, SCREEN_WIDTH*SCREEN_HEIGHT/2);
-		}
+		//}
 		
 		frameIdx++;
 		frameIdx = frameIdx % (astley.frameCount * 2);
@@ -81,7 +102,6 @@ int main(void) {
 		}
 		
 		//VBlankIntrWait();
-		asm("swi 0x05");
 	}
 	
 	return 0;
