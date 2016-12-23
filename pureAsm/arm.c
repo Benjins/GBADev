@@ -1,4 +1,29 @@
+void armFunc1(){
+	asm("mov r0, r1");
+	asm("mov r0, r1");
+	asm("mov r0, r1");
+	asm("mov r0, r1");
+	asm("mov r0, r1");
+	asm("mov r0, r1");
+	asm("mov r0, r1");
+	asm("mov r0, r1");
+	asm("mov r0, r1");
+}
+
+void armFunc2(){
+	asm("mov r1, r0");
+	asm("mov r1, r0");
+	asm("mov r1, r0");
+	asm("mov r1, r0");
+	asm("mov r1, r0");
+	asm("mov r1, r0");
+	asm("mov r1, r0");
+	armFunc1();
+}
+
 void armStuff(){
+	volatile int x = 6;
+	*(&x) = x;
 	asm("add r0, r0, r0");
 	asm("adds r0, r0, r0");
 	asm("add r0, r0, r1");
@@ -51,4 +76,12 @@ void armStuff(){
 	asm("mov r0, #0xFF0000");
 	asm("mov r0, #0xFF00000");
 	asm("swi 0x05");
+	
+	asm(".LinkL:    ");
+	asm("mov r1, r0  ");
+	asm("bl .LinkL  ");
+	asm("mov r1, r0  ");
+	
+	armFunc2();
+	
 }

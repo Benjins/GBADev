@@ -577,18 +577,29 @@ typedef struct {
 #define VEC_PARAM ProcDef
 #include "vec.h"
 
-ProcDefVector ParseTokens(ParseTokenVector toks){
-	ParseTokenVector labels = { 0 };
-	
+ProcDefVector ParseTokens(ParseTokenVector toks, LocalLabelVector* outGlobalLabels){
 	ProcDefVector procDefs = { 0 };
-
 	ProcDef currentDef = { 0 };
+	LocalLabelVector globalLabels = { 0 };
 
 	for (int i = 0; i < toks.count; i++){
 		if (TokenEqStr(toks.data[i], "@")){
 			i++;
 			if (TokenEqStr(toks.data[i], "include")) {
 				// TODO
+			}
+			else if (TokenEqStr(toks.data[i], "label")) {
+				i++;
+				LocalLabel label = { 0 };
+				label.name = toks.data[i];
+
+				int offset = currentDef.ops.count;
+				for (int i = 0; i < procDefs.count; i++) {
+					offset += procDefs.data[i].ops.count;
+				}
+				label.ipOffset = offset;
+
+				LocalLabelVectorPushBack(&globalLabels, label);
 			}
 			else if (TokenEqStr(toks.data[i], "word")) {
 				i++;
@@ -600,11 +611,41 @@ ProcDefVector ParseTokens(ParseTokenVector toks){
 
 				AsmOpVectorPushBack(&currentDef.ops, op);
 			}
+			else if (TokenEqStr(toks.data[i], "fill")) {
+				i++;
+
+				int count = ParseInt(toks.data[i].str, toks.data[i].len);
+				i++;
+
+				if (count < 0) {
+					printf("\nError: improper count in @fill: %d\n", count);
+					count = 0;
+				}
+
+				for (int i = 0; i < count; i++) {
+					AsmOp op = { 0 };
+					op.opCode = OC_LiteralWord;
+					op.arg1.type = VT_Immediate;
+					op.arg1.immediateValue = ParseInt(toks.data[i].str, toks.data[i].len);
+					AsmOpVectorPushBack(&currentDef.ops, op);
+				}
+			}
 			else if (TokenEqStr(toks.data[i], "proc")) {
 				i++;
 				ParseToken procName = toks.data[i];
 
 				currentDef.procName = procName;
+
+				LocalLabel label = { 0 };
+				label.name = procName;
+
+				int offset = 0;
+				for (int i = 0; i < procDefs.count; i++) {
+					offset += procDefs.data[i].ops.count;
+				}
+				label.ipOffset = offset;
+
+				LocalLabelVectorPushBack(&globalLabels, label);
 			}
 			else if (TokenEqStr(toks.data[i], "endproc")) {
 				ProcDefVectorPushBack(&procDefs, currentDef);
@@ -612,6 +653,9 @@ ProcDefVector ParseTokens(ParseTokenVector toks){
 				// Better way to reset? :p
 				ProcDef nextDef = { 0 };
 				currentDef = nextDef;
+			}
+			else {
+				printf("\nError, unknown directive @%.*s\n", toks.data[i].len, toks.data[i].str);
 			}
 		}
 		else {
@@ -678,6 +722,8 @@ ProcDefVector ParseTokens(ParseTokenVector toks){
 			}
 		}
 	}
+
+	*outGlobalLabels = globalLabels;
 
 	return procDefs;
 }
@@ -798,23 +844,38 @@ ArmInstruction AsmOpToMachineInstruction(AsmOp op, int opAddr) {
 	return inst;
 }
 
-int GetOffsetOfLabel(ProcDef* def, ParseToken labelName) {
+int GetOffsetOfLabel(ProcDef* def, ParseToken labelName, LocalLabelVector globalLabels) {
 	for (int i = 0; i < def->localLabels.count; i++) {
 		if (TokenEq(def->localLabels.data[i].name, labelName)) {
 			return def->localLabels.data[i].ipOffset;
 		}
 	}
 
+	for (int i = 0; i < globalLabels.count; i++) {
+		if (TokenEq(globalLabels.data[i].name, labelName)) {
+			int jumpToAddr = globalLabels.data[i].ipOffset;
+			int jumpFromAddr = 0;
+			for (int j = 0; j < globalLabels.count; j++) {
+				if (TokenEq(globalLabels.data[j].name, def->procName)) {
+					jumpFromAddr = globalLabels.data[j].ipOffset;
+					break;
+				}
+			}
+
+			return jumpToAddr - jumpFromAddr;
+		}
+	}
+
 	return -1;
 }
 
-void LinkLocalLabels(ProcDef* def) {
+void LinkLocalLabels(ProcDef* def, LocalLabelVector globalLabels) {
 	for (int i = 0; i < def->ops.count; i++) {
 		if (def->ops.data[i].arg1.type == VT_Label) {
-			def->ops.data[i].arg1.labelAddr = GetOffsetOfLabel(def, def->ops.data[i].arg1.labelName);
+			def->ops.data[i].arg1.labelAddr = GetOffsetOfLabel(def, def->ops.data[i].arg1.labelName, globalLabels);
 		}
 		if (def->ops.data[i].arg2.type == VT_Label) {
-			def->ops.data[i].arg2.labelAddr = GetOffsetOfLabel(def, def->ops.data[i].arg2.labelName);
+			def->ops.data[i].arg2.labelAddr = GetOffsetOfLabel(def, def->ops.data[i].arg2.labelName, globalLabels);
 		}
 
 		// I don't think arg3 can have labels...
@@ -836,13 +897,14 @@ int main(int argc, char** argv){
 	}
 	
 	//printf("------\n");
-	ProcDefVector defs = ParseTokens(toks);
+	LocalLabelVector labels = { 0 };
+	ProcDefVector defs = ParseTokens(toks, &labels);
 
 	FILE* gbaOut = fopen("test.gba", "wb");
 
 	for (int i = 0; i < defs.count; i++) {
 		printf("Proc %.*s\n", defs.data[i].procName.len, defs.data[i].procName.str);
-		LinkLocalLabels(&defs.data[i]);
+		LinkLocalLabels(&defs.data[i], labels);
 		for (int j = 0; j < defs.data[i].ops.count; j++) {
 			ArmInstruction inst = AsmOpToMachineInstruction(defs.data[i].ops.data[j], j);
 			printf("\tInst %3s(%2d): 0x%X\n", opCodeNames[defs.data[i].ops.data[j].opCode], j, inst.val);

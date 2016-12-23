@@ -64,8 +64,29 @@
 	mov r0 31
 	@word 0xE129F000 ; This is the same as  'msr CPSR_fc, r0' TODO
 	
+	;set sp to 03007fa0
+	;mov r0 0x03000000
+	;add r0 r0 0x7F00
+	;add r0 r0 0xa0
+	;mov sp r0
+	
+	;sub sp sp 4
+	
+	;; InterruptMain proc
+	;; mov	r3, #0x4000000		@ REG_BASE                                        
+	;; ldr	r2, [r3,#0x200]		@ Read	REG_IE                                    
+	;; ldr	r1, [r3, #0x208]	@ r1 = IME                                        
+	;; mov	r0, r1		                                                          
+	;; and	r1, r2,	r2, lsr #16	@ r1 =	IE & IF                                   
+	;; ldrh	r2, [r3, #-8]		 @mix up with BIOS irq flags at 3007FF8h,     
+	;; orr	r2, r2, r1		@ aka mirrored at 3FFFFF8h, this is required          
+	;; strh	r2, [r3, #-8]		@/when using the (VBlank)IntrWait functions   
+	;; add	r3,r3,#0x200                                                          
+	;; strh	r1, [r3, #0x02]		@ IF Clear                                    
+	;; str	r0, [r3, #0x208]	@ restore REG_IME                                 
+	;; mov	pc,lr                                                                 
+	
 	;INT_VECTOR = InterruptMain;
-	;
 	;BNS_REG_IME	= 0;
 	;REG_DISPSTAT |= LCDC_VBL;
 	;BNS_REG_IE |= IRQ_VBLANK;
@@ -77,18 +98,9 @@
 	add r1 r1 0x0400
 	str r1 [r0]
 	
-	mov r1 0
-	
 	; Very bad way of doing ldr r1=0x19FF8CD2
 	; Really, we just want variety, since this is our colour value
-	mov r2 0xD2
-	add r1 r1 r2
-	mov r2 0x8C00
-	add r1 r1 r2
-	mov r2 0xFF0000
-	add r1 r1 r2
-	mov r2 0x19000000
-	add r1 r1 r2
+	bl :stuff
 	
 	:Loop0:
 	mov r0 0x06000000
@@ -101,7 +113,21 @@
 	sub r2 r2 1
 	add r0 r0 4
 	cmp r2 0
-	b.eq :Loop
+	b.eq :Loop0
 	b :Loop1
 	
+@endproc
+
+@proc stuff
+	mov r1 0
+	mov r2 0xD2
+	add r1 r1 r2
+	mov r2 0x8C00
+	add r1 r1 r2
+	mov r2 0xFF0000
+	add r1 r1 r2
+	mov r2 0x19000000
+	add r1 r1 r2
+	
+	bx lr
 @endproc

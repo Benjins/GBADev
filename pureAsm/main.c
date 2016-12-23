@@ -1,6 +1,4 @@
 
-
-
 int main(){
 	asm("add r0, r0, r0");
 	// adds is not supported
@@ -25,7 +23,6 @@ int main(){
 	
 	asm("mov r0, #0x23");
 	asm("mov r2, r5");
-
 
 	return 0;
 }
