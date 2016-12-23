@@ -1,0 +1,244 @@
+Here are notes on what I find out.
+
+Lol.
+
+
+//  main.c disassemble::
+ 8000374:       1800            adds    r0, r0, r0
+ 8000376:       1840            adds    r0, r0, r1
+ 8000378:       1808            adds    r0, r1, r0
+ 800037a:       1801            adds    r1, r0, r0
+ 800037c:       4448            add     r0, r9
+ 800037e:       4448            add     r0, r9
+ 8000380:       4481            add     r9, r0
+ 8000382:       3000            adds    r0, #0
+ 8000384:       3001            adds    r0, #1
+ 8000386:       30ff            adds    r0, #255        ; 0xff
+ 8000388:       2000            movs    r0, #0
+ 800038a:       4770            bx      lr
+
+
+// arm.c dissassemlbe::
+ 8000330:       e0800000        add     r0, r0, r0
+ 8000334:       e0900000        adds    r0, r0, r0
+ 8000338:       e0800001        add     r0, r0, r1
+ 800033c:       e0810000        add     r0, r1, r0
+ 8000340:       e0801000        add     r1, r0, r0
+ 8000344:       e0800009        add     r0, r0, r9
+ 8000348:       e0890000        add     r0, r9, r0
+ 800034c:       e0809009        add     r9, r0, r9
+ 8000350:       e2800000        add     r0, r0, #0
+ 8000354:       e2800001        add     r0, r0, #1
+ 8000358:       e28000ff        add     r0, r0, #255    ; 0xff
+ 800035c:       e2800c01        add     r0, r0, #256    ; 0x100
+ 8000360:       e2800601        add     r0, r0, #1048576        ; 0x100000
+ 8000364:       00800000        addeq   r0, r0, r0
+ 8000368:       10800000        addne   r0, r0, r0
+ 800036c:       e0800080        add     r0, r0, r0, lsl #1
+ 8000370:       e12fff1e        bx      lr
+
+ 
+80003a4:       e3a00023        mov     r0, #35 ; 0x23
+80003a8:       e1a03006        mov     r3, r6
+
+------------------------------
+Gotten from http://stackoverflow.com/questions/11785973/converting-very-simple-arm-instructions-to-binary-hex
+bits 31-28: COND
+bits 27-26: 00, always clear?
+bit     25: immediate/register as 2nd operand
+bits 24-21: op code
+bit     20: set condition flags or no (1 = set flags)
+bits 19-16: first operand register
+bits 15-12: destination register
+bits 11- 0: operand 2
+
+op codes:
+ 0000: AND
+ 0001: EOR
+ 0010: SUB
+ 0011: RSB
+ 0100: ADD
+ 0101: ADC
+ 0110: SBC
+ 0111: RSC
+ 1000: TST
+ 1001: TEQ
+ 1010: CMP
+ 1011: CMN
+ 1100: ORR
+ 1101: MOV
+ 1110: BIC
+ 1111: MVN
+
+Conditional flags:
+From http://www.davespace.co.uk/arm/introduction-to-arm/conditional.html
+0000	EQ	Equal / equals zero	Z
+0001	NE	Not equal	!Z
+0010	CS / HS	Carry set / unsigned higher or same	C
+0011	CC / LO	Carry clear / unsigned lower	!C
+0100	MI	Minus / negative	N
+0101	PL	Plus / positive or zero	!N
+0110	VS	Overflow	V
+0111	VC	No overflow	!V
+1000	HI	Unsigned higher	C and !Z
+1001	LS	Unsigned lower or same	!C or Z
+1010	GE	Signed greater than or equal	N == V
+1011	LT	Signed less than	N != V
+1100	GT	Signed greater than	!Z and (N == V)
+1101	LE	Signed less than or equal	Z or (N != V)
+1110	AL	Always (default)	any
+
+Ex: add r0, r0, r0 would be:
+
+1110 00 0 0100 0 0000 0000 00000000 0000
+=
+11100000 10000000 00000000 00000000
+E0       80       00       00
+
+0xE0800000
+Correct!
+ 
+
+If op2 is reg:
+ bits 11-4: shit applied to reg
+ bits  3-0: 2nd op reg
+else:
+ bits 11-8: shift to imm value
+ bits  7-0: unsigned 8-bit imm value
+
+
+
+For 16-bit Thumb:
+
+6-bit Thumb instruction encoding
+The encoding of a 16-bit Thumb instruction is:
+Table A6-1 shows the allocation of 16-bit instruction encodings.
+Table A6-1 16-bit Thumb instruction encoding
+Opcode Instruction or instruction class Variant
+00xxxx Shift (immediate), add, subtract, move, and compare on page A6-224 -
+010000 Data-processing on page A6-225 -
+010001 Special data instructions and branch and exchange on page A6-226 -
+01001x Load from Literal Pool, see LDR (literal) on page A8-410 v4T
+0101xx
+011xxx
+100xxx  Load/store single data item on page A6-227 -
+10100x Generate PC-relative address, see ADR on page A8-322 v4T
+10101x Generate SP-relative address, see ADD (SP plus immediate) on page A8-316 v4T
+1011xx Miscellaneous 16-bit instructions on page A6-228 -
+11000x Store multiple registers, see STM (STMIA, STMEA) on page A8-664 a
+a. In ThumbEE, 16-bit load/store multiple instructions are not available. This encoding is used for special
+ThumbEE instructions. For details see Chapter A9 The ThumbEE Instruction Set.
+v4T
+11001x Load multiple registers, see LDM/LDMIA/LDMFD (Thumb) on page A8-396 a v4T
+1101xx Conditional branch, and Supervisor Call on page A6-229 -
+11100x Unconditional Branch, see B on page A8-334
+
+
+
+32-bit thumb?
+
+ 1 op1 op2 op
+15 14 13 12 11 10 9 8 7 6 5 4 3 2 1 0
+1
+15 14 13 12 11 10 9 8 7 6 5 4 3 2 1 0
+
+---------------------------------
+
+Example str:
+
+str r0, [r0, #520]  -->  0xe5800208
+
+E5       80       02       08
+11100101 10000000 00000010 00001000
+
+cond: 1110
+   :: 010
+   
+   
+   
+=======================================
+Okay, what would my asm look like??
+------------------------------------
+
+
+; This is a comment
+
+@byte 0
+@word 0
+
+@fill 0 16
+
+$MACRO_START addmul 3
+  mov r0 %1
+  mov r1 %2
+  mov r2 %3
+  add r0 r0 r1
+  mul r0 r0 r2
+$MACRO_END
+
+@align 4
+func_one:
+  mov r0 #2
+  mov r1 #0x4000000
+  ldr r2 [r1, #40]
+  cmp r2 #0
+  str.eq r0 [r1 #10]
+  sub r1 r1 #4
+ .LlabelOne:
+  add r1 r1 #4
+  ldr r2 [r1]
+  cmp r2 #16
+  b.ne .LabelOne
+  mov r2 #0
+  str r2 [r1]
+  ; Useless bull
+  $addmul r1 #4 #7
+  bx lr
+  
+@entry
+@align 4
+main_entry:
+  ; Yeah it does stuff or whatever
+
+------------------------------
+
+My own asm:
+
+	add     r0  r0  r0 ; e0800000
+	add     r0  r0  r1 ; e0800001
+	add     r9  r0  r9 ; e0809009
+	
+	:L0:
+	sub r0 r0 1     	;e2400001        sub     r0, r0, #1
+	cmp r0 0            ;e3500000        cmp     r0, #0
+	b.ne :L1
+	
+	mov r0 r1
+	and r0 r1 15
+	cmp r0 r1
+	lsl r5 r6 4 ;  e1a05206
+	add r5 r5 234
+	
+    mov     r0 35  ;e3a00023
+    mov     r3 r6  ;e1a03006
+	
+	:L1:
+	str r0 [r2 520] ; 0x208
+	
+    
+	str     r0 [r0 520]      ; e5800208        
+	str     r0 [r0 0]        ; e5800000        
+	str     r3 [r0]        ; e5803000        
+	ldr     r3 [pc 16]       ; e59f3010    
+	
+	b.ne :L2
+	b.ne :L2
+	:L2:
+	
+	cmp r0 r3
+	b.ne :L2
+	b.ne :L2
+	
+	bx lr
+  
+  
