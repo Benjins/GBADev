@@ -64,12 +64,12 @@
 	mov r0 31
 	@word 0xE129F000 ; This is the same as  'msr CPSR_fc, r0' TODO
 	
-	INT_VECTOR = InterruptMain;
-	
-	BNS_REG_IME	= 0;
-	REG_DISPSTAT |= LCDC_VBL;
-	BNS_REG_IE |= IRQ_VBLANK;
-	BNS_REG_IME	= 1;
+	;INT_VECTOR = InterruptMain;
+	;
+	;BNS_REG_IME	= 0;
+	;REG_DISPSTAT |= LCDC_VBL;
+	;BNS_REG_IE |= IRQ_VBLANK;
+	;BNS_REG_IME	= 1;
 	
 	; Set up bitmap mode
 	mov r0 0x04000000
@@ -95,7 +95,7 @@
 	mov r2 1024
 	
 	:Loop1:
-	@word 0xEF000005 ; swi 0x05 Vblank wait
+	;@word 0xEF000005 ; swi 0x05 Vblank wait
 	add r1 r1 1
 	str r1 [r0]
 	sub r2 r2 1
