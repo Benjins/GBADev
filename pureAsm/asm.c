@@ -782,6 +782,7 @@ ArmInstruction AsmOpToMachineInstruction(AsmOp op, int opAddr) {
 		inst.opCode = op.opCode;
 		if (op.opCode == OC_CMP) {
 			inst.imm = (op.arg2.type == VT_Immediate);
+			inst.regOp1 = op.arg1.registerIndex;
 			inst.setCondFlags = 1;
 		}
 		else if (op.opCode == OC_MOV
@@ -825,7 +826,7 @@ ArmInstruction AsmOpToMachineInstruction(AsmOp op, int opAddr) {
 		inst.ldrStrPreOffset = 1;
 		if (op.arg2.type == VT_RegisterOffset) {
 			int offset = op.arg2.offsetRegisterOffset;
-			inst.ldrStrOffsetSign = (offset > 0);
+			inst.ldrStrOffsetSign = (offset >= 0);
 			inst.ldrStrOffset = BNS_ABS(offset);
 			inst.regOp1 = op.arg2.offsetRegisterIndex;
 		}

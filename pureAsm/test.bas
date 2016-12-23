@@ -102,32 +102,45 @@
 	; Really, we just want variety, since this is our colour value
 	bl :stuff
 	
-	:Loop0:
-	mov r0 0x06000000
-	mov r2 1024
+	:MainLoop:
 	
-	:Loop1:
-	;@word 0xEF000005 ; swi 0x05 Vblank wait
-	add r1 r1 1
-	str r1 [r0]
-	sub r2 r2 1
-	add r0 r0 4
-	cmp r2 0
-	b.eq :Loop0
-	b :Loop1
+	bl :drawColToScreen
+	add r0 r0 0x0FF0
+	b :MainLoop
 	
 @endproc
 
 @proc stuff
-	mov r1 0
-	mov r2 0xD2
-	add r1 r1 r2
-	mov r2 0x8C00
-	add r1 r1 r2
-	mov r2 0xFF0000
-	add r1 r1 r2
-	mov r2 0x19000000
-	add r1 r1 r2
+	;mov r0 0
+	;mov r1 0xFF
+	;add r0 r1 r2
+	;mov r1 0xFF00
+	;add r0 r1 r2
+	;mov r1 0xFF0000
+	;add r0 r1 r2
+	;mov r1 0xFF000000
+	;add r0 r1 r2
 	
+	ldr r0 [pc]
+	bx lr
+	
+	@word 0xFF2200FF
+	@word 0xFFFFFFFF
+@endproc
+
+; r0 holds color to draw
+@proc drawColToScreen
+	mov r1 0x06000000
+	mov r2 9600
+	
+	:Loop0:
+	str r0 [r1]
+	sub r2 r2 1
+	add r1 r1 4
+	cmp r2 0 ;e3520000
+	b.eq :Done
+	b :Loop0
+	
+	:Done:
 	bx lr
 @endproc

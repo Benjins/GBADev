@@ -81,6 +81,10 @@ void armStuff(){
 	asm("mov r1, r0  ");
 	asm("bl .LinkL  ");
 	asm("mov r1, r0  ");
+	asm("ldr r0, [pc]");
+	asm("ldr r0, [pc, #4]");
+	asm("ldr r0, [pc, #8]");
+	asm("cmp r2, #0");
 	
 	armFunc2();
 	
