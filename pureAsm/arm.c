@@ -86,6 +86,9 @@ void armStuff(){
 	asm("ldr r0, [pc, #8]");
 	asm("cmp r2, #0");
 	
+	asm("push {lr}");
+	asm("pop {lr}");
+	
 	armFunc2();
 	
 }

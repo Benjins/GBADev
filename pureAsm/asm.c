@@ -601,6 +601,14 @@ ProcDefVector ParseTokens(ParseTokenVector toks, LocalLabelVector* outGlobalLabe
 
 				LocalLabelVectorPushBack(&globalLabels, label);
 			}
+			else if (TokenEqStr(toks.data[i], "labelWord")) {
+				i++;
+				AsmOp op = { 0 };
+				op.opCode = OC_LiteralWord;
+				op.arg1.type = VT_Label;
+				op.arg1.labelName = toks.data[i];
+				AsmOpVectorPushBack(&currentDef.ops, op);
+			}
 			else if (TokenEqStr(toks.data[i], "word")) {
 				i++;
 
@@ -839,17 +847,34 @@ ArmInstruction AsmOpToMachineInstruction(AsmOp op, int opAddr) {
 		// TODO
 	}
 	else if (op.opCode == OC_LiteralWord) {
-		inst.val = op.arg1.immediateValue;
+		if (op.arg1.type == VT_Immediate) {
+			inst.val = op.arg1.immediateValue;
+		}
+		else if (op.arg1.type == VT_Label) {
+			inst.val = op.arg1.labelAddr * 4;
+		}
+		else {
+			// TODO: Error
+		}
 	}
 
 	return inst;
 }
 
-int GetOffsetOfLabel(ProcDef* def, ParseToken labelName, LocalLabelVector globalLabels) {
-	for (int i = 0; i < def->localLabels.count; i++) {
-		if (TokenEq(def->localLabels.data[i].name, labelName)) {
-			return def->localLabels.data[i].ipOffset;
+int GetRawLabelAddr(ParseToken labelName, LocalLabelVector labels) {
+	for (int i = 0; i < labels.count; i++) {
+		if (TokenEq(labels.data[i].name, labelName)) {
+			return labels.data[i].ipOffset;
 		}
+	}
+
+	return -1;
+}
+
+int GetOffsetOfLabel(ProcDef* def, ParseToken labelName, LocalLabelVector globalLabels) {
+	int localOffset = GetRawLabelAddr(labelName, def->localLabels);
+	if (localOffset >= 0) {
+		return localOffset;
 	}
 
 	for (int i = 0; i < globalLabels.count; i++) {
@@ -873,7 +898,12 @@ int GetOffsetOfLabel(ProcDef* def, ParseToken labelName, LocalLabelVector global
 void LinkLocalLabels(ProcDef* def, LocalLabelVector globalLabels) {
 	for (int i = 0; i < def->ops.count; i++) {
 		if (def->ops.data[i].arg1.type == VT_Label) {
-			def->ops.data[i].arg1.labelAddr = GetOffsetOfLabel(def, def->ops.data[i].arg1.labelName, globalLabels);
+			if (def->ops.data[i].opCode == OC_LiteralWord) {
+				def->ops.data[i].arg1.labelAddr = GetRawLabelAddr(def->ops.data[i].arg1.labelName, globalLabels);
+			}
+			else {
+				def->ops.data[i].arg1.labelAddr = GetOffsetOfLabel(def, def->ops.data[i].arg1.labelName, globalLabels);
+			}
 		}
 		if (def->ops.data[i].arg2.type == VT_Label) {
 			def->ops.data[i].arg2.labelAddr = GetOffsetOfLabel(def, def->ops.data[i].arg2.labelName, globalLabels);

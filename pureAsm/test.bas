@@ -1,5 +1,4 @@
-@proc multiply
-
+@proc rom_start
 	@word 0xEA00002E
 	@word 0x51AEFF24
 	@word 0x21A29A69
@@ -56,19 +55,68 @@
 	@word 0x00000000
 	@word 0x00000000
 	@word 0x00000000
+	
+@endproc
+
+@proc veryStart
+	b :init
+@endproc
+
+; r0 dst
+; r1 src
+; r2 size
+@proc CpyData
+	:CopyLoop:
+	
+	cmp r2 0
+	b.le :Done
+	
+	ldr r3 [r1]
+	str r3 [r0]
+	
+	add r0 r0 4
+	add r1 r1 4
+	sub r2 r2 4
+	
+	b :CopyLoop
+	
+	:Done:
+	bx lr
+@endproc
+
+@proc CpyArmToRam
+	@word 0xE52DE004 ; push lr
+	
+	ldr r1 [pc 24]
+	ldr r0 [pc 24]
+	sub r2 r0 r1
+	add r1 r1 0x08000000
+	sub r0 r1 0x05000000
+	bl :CpyData
+	
+	@word 0xE49DE004 ; pop lr
+	bx lr
+	
+	@labelWord ArmCodeStart
+	@labelWord ArmCodeEnd
+@endproc
+
+@label ArmCodeStart
+
+@proc init
 
 	mov r0 0x4000000
 	str r0 [r0 520]
 	mov r0 18
 	@word 0xE129F000 ; This is the same as  'msr CPSR_fc, r0' TODO
+	;; TODO: Set IRQ stack
 	mov r0 31
 	@word 0xE129F000 ; This is the same as  'msr CPSR_fc, r0' TODO
 	
-	;set sp to 03007fa0
-	;mov r0 0x03000000
-	;add r0 r0 0x7F00
-	;add r0 r0 0xa0
-	;mov sp r0
+	; Init user mode stack
+	mov sp 0x03000000
+	add sp sp 0x7F00
+	add sp sp 0xA0
 	
 	;sub sp sp 4
 	
@@ -92,6 +140,13 @@
 	;BNS_REG_IE |= IRQ_VBLANK;
 	;BNS_REG_IME	= 1;
 	
+	bl :CpyArmToRam
+	
+	mov r0 0x5000000
+	add r0 r0 4
+	
+	sub pc pc r0
+	
 	; Set up bitmap mode
 	mov r0 0x04000000
 	mov r1 0x0003
@@ -105,23 +160,15 @@
 	:MainLoop:
 	
 	bl :drawColToScreen
-	add r0 r0 0x0FF0
+	sub r0 r0 1
+	sub r0 r0 0x10000
 	b :MainLoop
 	
 @endproc
 
 @proc stuff
-	;mov r0 0
-	;mov r1 0xFF
-	;add r0 r1 r2
-	;mov r1 0xFF00
-	;add r0 r1 r2
-	;mov r1 0xFF0000
-	;add r0 r1 r2
-	;mov r1 0xFF000000
-	;add r0 r1 r2
 	
-	ldr r0 [pc]
+	ldr r0 [pc 4]
 	bx lr
 	
 	@word 0xFF2200FF
@@ -144,3 +191,5 @@
 	:Done:
 	bx lr
 @endproc
+
+@label ArmCodeEnd
