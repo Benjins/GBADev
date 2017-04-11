@@ -160,8 +160,12 @@
 	:MainLoop:
 	
 	bl :drawColToScreen
+
 	sub r0 r0 1
 	sub r0 r0 0x10000
+	mov r4 1
+	
+	swi 0x05
 	b :MainLoop
 	
 @endproc
@@ -178,7 +182,7 @@
 ; r0 holds color to draw
 @proc drawColToScreen
 	mov r1 0x06000000
-	mov r2 9600
+	mov r2 19200
 	
 	:Loop0:
 	str r0 [r1]

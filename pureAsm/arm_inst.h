@@ -56,6 +56,12 @@ typedef struct {
 			unsigned int instType : 3;
 			unsigned int _condCode : 4;
 		};
+		
+		struct {
+			unsigned int swiImmediate : 24;
+			unsigned int _swiReserved : 4;
+			unsigned int _swiCondCode : 4;
+		};
 
 		struct {
 			unsigned int ldrStrOffset : 12;
