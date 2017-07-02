@@ -120,26 +120,6 @@
 	
 	;sub sp sp 4
 	
-	;; InterruptMain proc
-	;; mov	r3, #0x4000000		@ REG_BASE                                        
-	;; ldr	r2, [r3,#0x200]		@ Read	REG_IE                                    
-	;; ldr	r1, [r3, #0x208]	@ r1 = IME                                        
-	;; mov	r0, r1		                                                          
-	;; and	r1, r2,	r2, lsr #16	@ r1 =	IE & IF                                   
-	;; ldrh	r2, [r3, #-8]		 @mix up with BIOS irq flags at 3007FF8h,     
-	;; orr	r2, r2, r1		@ aka mirrored at 3FFFFF8h, this is required          
-	;; strh	r2, [r3, #-8]		@/when using the (VBlank)IntrWait functions   
-	;; add	r3,r3,#0x200                                                          
-	;; strh	r1, [r3, #0x02]		@ IF Clear                                    
-	;; str	r0, [r3, #0x208]	@ restore REG_IME                                 
-	;; mov	pc,lr                                                                 
-	
-	;INT_VECTOR = InterruptMain;
-	;BNS_REG_IME	= 0;
-	;REG_DISPSTAT |= LCDC_VBL;
-	;BNS_REG_IE |= IRQ_VBLANK;
-	;BNS_REG_IME	= 1;
-	
 	bl :CpyArmToRam
 	
 	mov r0 0x5000000
@@ -148,24 +128,75 @@
 	sub pc pc r0
 	
 	; Set up bitmap mode
+	; REG_DISPLAY = 0x1000 | 0x0040 | 0x0100
 	mov r0 0x04000000
-	mov r1 0x0003
-	add r1 r1 0x0400
+	mov r1 0x1140
 	str r1 [r0]
 	
 	; Very bad way of doing ldr r1=0x19FF8CD2
 	; Really, we just want variety, since this is our colour value
-	bl :stuff
+	;bl :stuff
+	
+	; Set up some palette colours...like 4?
+	mov r0 0x05000000
+	add r0 r0 0x200
+	mov r1 0x00
+	add r1 r1 0xFF0000
+	add r1 r1 0xFF000000
+	str r1 [r0]
+	add r0 r0 4
+	mov r1 0xEE
+	add r1 r1 0x3800
+	add r1 r1 0x190000
+	add r1 r1 0x91000000
+	str r1 [r0]
+	
+	; Get a sprite image there
+	; VRAM + 512 * 8 * 32 * 4 is where OAM tile memory starts
+	mov r0 0x06000000
+	add r0 r0 0x10000
+	add r0 r0 0x20
+	mov r1 1
+	add r1 r1 0x10000
+	str r1 [r0]
+	str r1 [r0 4]
+	str r1 [r0 8]
+	mov r1 2
+	add r1 r1 0x30000
+	str r1 [r0 12]
+	str r1 [r0 16]
+	str r1 [r0 20]
+	mov r1 1
+	add r1 r1 0x30000
+	str r1 [r0 24]
+	str r1 [r0 28]
+	
+	; Set up an oam object
+	mov r0 0x07000000
+	mov r1 0x00
+	add r1 r1 0x370000
+	str r1 [r0]
+	mov r1 0x01
+	str r1 [r0 4]
+	
+	
+	mov r2 23
 	
 	:MainLoop:
 	
-	bl :drawColToScreen
-
-	sub r0 r0 1
-	sub r0 r0 0x10000
-	mov r4 1
+	mov r0 0x07000000
+	mov r1 r2
+	add r1 r1 0x370000
+	str r1 [r0]
 	
-	swi 0x05
+	add r2 r2 1
+	
+	cmp r2 120
+	b.ne :Normal_Loop
+	mov r2 23
+
+	:Normal_Loop:
+	
 	b :MainLoop
 	
 @endproc
