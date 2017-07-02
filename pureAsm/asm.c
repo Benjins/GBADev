@@ -467,32 +467,34 @@ int ParseAsmValue(ParseTokenVector toks, int index, ValueType types, AsmValue* v
 }
 
 #define OP_CODE_DATA(mac) \
-	mac("and", AND ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
-	mac("eor", EOR ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
-	mac("sub", SUB ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
-	mac("rsb", RSB ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
-	mac("add", ADD ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
-	mac("adc", ADC ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
-	mac("sbc", SBC ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
-	mac("rsc", RSC ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
-	mac("tst", TST ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
-	mac("teq", TEQ ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
-	mac("cmp", CMP ,  VT_Register,  VT_2ndOperand,                VT_None) \
-	mac("cmn", CMN ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
-	mac("orr", ORR ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
-	mac("mov", MOV ,  VT_Register,  VT_2ndOperand | VT_Label,     VT_None) \
-	mac("bic", BIC ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
-	mac("mvn", MVN ,  VT_Register,  VT_2ndOperand | VT_Label,     VT_None) \
-	mac("lsl", LSL ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
-	mac("lsr", LSR ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
-	mac("asl", ASL ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
-	mac("asr", ASR ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
-	mac("ldr", LDR ,  VT_Register,  VT_RegisterOffset | VT_Label, VT_None) \
-	mac("str", STR ,  VT_Register,  VT_RegisterOffset | VT_Label, VT_None) \
-	mac("b",   B   ,  VT_Label ,    VT_None,                      VT_None) \
-	mac("bx",  BX  ,  VT_Register,  VT_None,                      VT_None) \
-	mac("bl",  BL  ,  VT_Label,     VT_None,                      VT_None) \
-	mac("swi", SWI ,  VT_Immediate, VT_None,                      VT_None)
+	mac("and",  AND ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
+	mac("eor",  EOR ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
+	mac("sub",  SUB ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
+	mac("rsb",  RSB ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
+	mac("add",  ADD ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
+	mac("adc",  ADC ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
+	mac("sbc",  SBC ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
+	mac("rsc",  RSC ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
+	mac("tst",  TST ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
+	mac("teq",  TEQ ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
+	mac("cmp",  CMP ,  VT_Register,  VT_2ndOperand,                VT_None) \
+	mac("cmn",  CMN ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
+	mac("orr",  ORR ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
+	mac("mov",  MOV ,  VT_Register,  VT_2ndOperand | VT_Label,     VT_None) \
+	mac("bic",  BIC ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
+	mac("mvn",  MVN ,  VT_Register,  VT_2ndOperand | VT_Label,     VT_None) \
+	mac("lsl",  LSL ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
+	mac("lsr",  LSR ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
+	mac("asl",  ASL ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
+	mac("asr",  ASR ,  VT_Register,  VT_Register,                  VT_2ndOperand) \
+	mac("ldr",  LDR ,  VT_Register,  VT_RegisterOffset | VT_Label, VT_None) \
+	mac("str",  STR ,  VT_Register,  VT_RegisterOffset | VT_Label, VT_None) \
+	mac("ldrh", LDRH,  VT_Register,  VT_RegisterOffset | VT_Label, VT_None) \
+	mac("strh", STRH,  VT_Register,  VT_RegisterOffset | VT_Label, VT_None) \
+	mac("b",    B   ,  VT_Label ,    VT_None,                      VT_None) \
+	mac("bx",   BX  ,  VT_Register,  VT_None,                      VT_None) \
+	mac("bl",   BL  ,  VT_Label,     VT_None,                      VT_None) \
+	mac("swi",  SWI ,  VT_Immediate, VT_None,                      VT_None)
 
 
 #define MAC(str, name, op1Type, op2Type, op3Type) str ,
@@ -842,6 +844,30 @@ ArmInstruction AsmOpToMachineInstruction(AsmOp op, int opAddr) {
 		else {
 			inst.ldrStrOffset = 0;
 			inst.regOp1 = op.arg2.registerIndex;
+		}
+	}
+	else if (op.opCode == OC_LDRH || op.opCode == OC_STRH) {
+		
+		inst.ldrStrHalfWordReserved1 = 1;
+		inst.ldrStrHalfWordPreOffset = 1;
+		inst.ldrStrHalfWordReserved2 = 0;
+		inst.ldrStrHalfWordReserved = 0x0B;
+		inst.ldrStrHalfWordDestReg = op.arg1.registerIndex;
+
+		inst.ldrStrHalfWordIsLoad = (op.opCode == OC_LDRH);
+
+		if (op.arg2.type == VT_RegisterOffset) {
+			int offset = op.arg2.offsetRegisterOffset;
+			inst.ldrStrHalfWordOffsetSign = (offset >= 0);
+			offset = BNS_ABS(offset);
+			inst.ldrStrHalfWordOffsetLowNibble = offset & 0xF;
+			inst.ldrStrHalfWordOffsetHighNibble = (offset >> 4) & 0xF;
+			inst.ldrStrHalfWordBaseReg = op.arg2.offsetRegisterIndex;
+		}
+		else {
+			inst.ldrStrHalfWordBaseReg = op.arg2.registerIndex;
+			inst.ldrStrHalfWordOffsetLowNibble = 0;
+			inst.ldrStrHalfWordOffsetHighNibble = 0;
 		}
 	}
 	else if (op.opCode >= OC_LSL && op.opCode <= OC_ASR) {

@@ -73,6 +73,21 @@ typedef struct {
 			unsigned int ldrStrPreOffset : 1;
 			unsigned int _ldrStrPadding2 : 7;
 		};
+
+		struct {
+			unsigned int ldrStrHalfWordOffsetLowNibble : 4;
+			unsigned int ldrStrHalfWordReserved : 4; // set to 1011, aka 0x0B
+			unsigned int ldrStrHalfWordOffsetHighNibble : 4;
+			unsigned int ldrStrHalfWordDestReg : 4;
+			unsigned int ldrStrHalfWordBaseReg : 4;
+			unsigned int ldrStrHalfWordIsLoad : 1;
+			unsigned int ldrStrHalfWordWriteBack : 1;
+			unsigned int ldrStrHalfWordReserved1 : 1; // Set to 1
+			unsigned int ldrStrHalfWordOffsetSign : 1;
+			unsigned int ldrStrHalfWordPreOffset : 1; // Set to 1
+			unsigned int ldrStrHalfWordReserved2 : 3; // Set to 0
+			unsigned int ldrStrHalfWordCondCode : 4;
+		};
 	};
 } ArmInstruction;
 

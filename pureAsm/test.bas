@@ -70,7 +70,7 @@
 	
 	cmp r2 0
 	b.le :Done
-	
+
 	ldr r3 [r1]
 	str r3 [r0]
 	
@@ -191,11 +191,13 @@
 	
 	add r2 r2 1
 	
-	cmp r2 120
-	b.ne :Normal_Loop
+	cmp r2 50
+	b.ge :Normal_Loop
 	mov r2 23
-
 	:Normal_Loop:
+	
+	;; TODO: Get interrupts working
+	;;swi 0x05
 	
 	b :MainLoop
 	
