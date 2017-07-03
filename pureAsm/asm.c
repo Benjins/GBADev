@@ -326,7 +326,7 @@ typedef struct{
 		
 		struct{
 			unsigned int offsetRegisterIndex : 4;
-			unsigned int offsetRegisterOffset : 16;
+			int offsetRegisterOffset : 16;
 		};
 		
 		struct{

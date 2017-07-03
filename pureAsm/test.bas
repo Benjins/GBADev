@@ -127,6 +127,8 @@
 	
 	sub pc pc r0
 	
+	bl :SetupInterrupts
+	
 	; Set up bitmap mode
 	; REG_DISPLAY = 0x1000 | 0x0040 | 0x0100
 	mov r0 0x04000000
@@ -197,7 +199,7 @@
 	:Normal_Loop:
 	
 	;; TODO: Get interrupts working
-	;;swi 0x05
+	swi 0x05
 	
 	b :MainLoop
 	
@@ -228,5 +230,100 @@
 	:Done:
 	bx lr
 @endproc
+
+;; Interrupt addrs
+;;#define INT_VECTOR	*(IntFn *)(0x03007ffc)
+;;#define BNS_REG_IE  (*(volatile uint16*)0x04000200)
+;;#define BNS_REG_IF  (*(volatile uint16*)0x04000202)
+;;#define BNS_REG_IME (*(volatile uint16*)0x04000208)
+;;#define REG_DISPSTAT (*((volatile uint16 *)(MEM_IO + 0x0004)))
+;;#define LCDC_VBL (1 << 3)
+;;#define IRQ_VBLANK (1 << 0)
+
+;; Do:
+;; INT_VECTOR = InterruptMain
+;; BNS_REG_IME	= 0;
+;; REG_DISPSTAT |= LCDC_VBL;
+;; BNS_REG_IE |= IRQ_VBLANK;
+;;BNS_REG_IME	= 1;
+
+@proc SetupInterrupts
+	
+	; Get INT_VECTOR addr into r0
+	mov r0 0x03000000
+	add r0 r0 0x7F00
+	add r0 r0 0xFC
+	
+	; Store InterruptMain in INT_VECTOR
+	ldr r1 [pc 76]
+	add r1 r1 0x03000000
+	str r1 [r0]
+	
+	;; BNS_REG_IME = 0
+	mov r0 0x04000000
+	add r0 r0 0x208
+	mov r1 0
+	strh r1 [r0]
+	
+	;; REG_DISPSTAT |= LCDC_VBL
+	mov r0 0x04000000
+	ldrh r1 [r0 2]
+	orr r1 r1 8
+	strh r1 [r0 2]
+	
+	;; BNS_REG_IE |= IRQ_VBLANK
+	mov r0 0x04000000
+	add r0 r0 0x200
+	ldrh r1 [r0]
+	orr r1 r1 1
+	strh r1 [r0]
+	
+	;; BNS_REG_IME = 1
+	mov r0 0x04000000
+	add r0 r0 0x208
+	mov r1 1
+	strh r1 [r0]
+
+	bx lr
+	@labelWord InterruptMainStart
+@endproc
+
+@label InterruptMainStart
+@proc InterruptMain
+
+	mov	r3 67108864	; 0x4000000
+	ldr	r2 [r3 512]	; 0x200
+	ldr	r1 [r3 520]	; 0x208
+	mov	r0 r1
+	and	r1 r2 r2 << 16
+	ldrh	r2 [r3 -8]  ;;@mix up with BIOS irq flags at 3007FF8h
+	orr	r2 r2 r1
+	strh	r2 [r3 -8]
+	add	r3 r3 512	; 0x200
+	strh	r1 [r3 2]
+	str	r0 [r3 520]	; 0x208
+	mov	pc lr
+	bx	lr
+
+@endproc
+
+;;03000000 <_Z13InterruptMainv>:
+;;3000000:	e3a03301 	mov	r3, #67108864	; 0x4000000
+;;3000004:	e5932200 	ldr	r2, [r3, #512]	; 0x200
+;;3000008:	e5931208 	ldr	r1, [r3, #520]	; 0x208
+;;300000c:	e1a00001 	mov	r0, r1
+;;3000010:	e0021822 	and	r1, r2, r2, lsr #16
+;;3000014:	e15320b8 	ldrh	r2, [r3, #-8]
+;;3000018:	e5132008 	ldr	r2, [r3, #-8]
+;;300001c:	e1d100b0 	ldrh	r0, [r1]
+;;3000020:	e5910000 	ldr	r0, [r1]
+;;3000024:	e1822001 	orr	r2, r2, r1
+;;3000028:	e14320b8 	strh	r2, [r3, #-8]
+;;300002c:	e2833c02 	add	r3, r3, #512	; 0x200
+;;3000030:	e1c310b2 	strh	r1, [r3, #2]
+;;3000034:	e5830208 	str	r0, [r3, #520]	; 0x208
+;;3000038:	e1a0f00e 	mov	pc, lr
+;;300003c:	e12fff1e 	bx	lr
+
 
 @label ArmCodeEnd
