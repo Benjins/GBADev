@@ -363,7 +363,7 @@ int ParseAsmValue(ParseTokenVector toks, int index, ValueType types, AsmValue* v
 							int shift = ParseInt(toks.data[index + 2].str, toks.data[index + 2].len);
 							valOut->type = (ValueType)type;
 							valOut->shiftedRegisterIndex = regIndex;
-							valOut->shiftedRegisterShift = shift;
+							valOut->shiftedRegisterShift = -shift;
 							
 							return index + 3;
 						}
@@ -371,7 +371,7 @@ int ParseAsmValue(ParseTokenVector toks, int index, ValueType types, AsmValue* v
 							int shift = ParseInt(toks.data[index + 2].str, toks.data[index + 2].len);
 							valOut->type = (ValueType)type;
 							valOut->shiftedRegisterIndex = regIndex;
-							valOut->shiftedRegisterShift = -shift;
+							valOut->shiftedRegisterShift = shift;
 							
 							return index + 3;
 						}
@@ -778,7 +778,8 @@ bool SecondOperand(ArmInstruction* inst, AsmValue op) {
 	}
 	else {
 		inst->shiftedDstReg = op.shiftedRegisterIndex;
-		inst->_shiftedDstReserved = (op.shiftedRegisterShift >= 0 ? 0 : 2);
+		inst->shiftedDstRegShiftIsRegister = 0;
+		inst->shiftedDstRegShiftType = (op.shiftedRegisterShift < 0 ? 1 : 0);
 		inst->shiftedDstShift = BNS_ABS(op.shiftedRegisterShift);
 	}
 
@@ -795,6 +796,7 @@ ArmInstruction AsmOpToMachineInstruction(AsmOp op, int opAddr) {
 			inst.imm = (op.arg2.type == VT_Immediate);
 			inst.regOp1 = op.arg1.registerIndex;
 			inst.setCondFlags = 1;
+			SecondOperand(&inst, op.arg2);
 		}
 		else if (op.opCode == OC_MOV
 			  || op.opCode == OC_MVN) {

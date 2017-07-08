@@ -15,7 +15,8 @@ typedef struct {
 
 		struct{
 			unsigned int shiftedDstReg : 4;
-			unsigned int _shiftedDstReserved : 3;
+			unsigned int shiftedDstRegShiftIsRegister : 1;
+			unsigned int shiftedDstRegShiftType : 2;
 			unsigned int shiftedDstShift : 5;
 		};
 
